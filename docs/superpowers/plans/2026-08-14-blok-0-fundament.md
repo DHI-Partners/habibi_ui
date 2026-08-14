@@ -329,10 +329,12 @@ class TestSessionMe(IntegrationTestCase):
 		self.assertIn("erpnext", keys)
 
 	def test_guest_is_rejected(self):
+		# Возврат пользователя через addCleanup, а не последней строкой тела:
+		# при падении assert соседние тесты не должны достаться Guest-у.
+		self.addCleanup(frappe.set_user, "Administrator")
 		frappe.set_user("Guest")
 		with self.assertRaises(frappe.PermissionError):
 			me()
-		frappe.set_user("Administrator")
 ```
 
 - [ ] **Step 2: Запустить тесты и убедиться, что они падают**
@@ -637,6 +639,9 @@ import os
 from urllib.parse import urlencode
 
 import frappe
+# Явный импорт обязателен: frappe.sessions не подтягивается пакетом frappe.
+# Так же делает frappe/www/desk.py.
+import frappe.sessions
 from frappe import _
 
 no_cache = 1
