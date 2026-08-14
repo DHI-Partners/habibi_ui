@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Habibi</title>
+		{% for style in styles %}
+		<link rel="stylesheet" href="{{ style }}" />
+		{% endfor %}
+	</head>
+	<body>
+		<div id="root"></div>
+		<script>
+			window.habibi = {
+				csrf_token: "{{ csrf_token }}",
+				user: "{{ user }}",
+			};
+		</script>
+		<script type="module" src="{{ script }}"></script>
+	</body>
+</html>
