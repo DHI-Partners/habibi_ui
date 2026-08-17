@@ -11,10 +11,7 @@
 	<body>
 		<div id="root"></div>
 		<script>
-			window.habibi = {
-				csrf_token: "{{ csrf_token }}",
-				user: "{{ user }}",
-			};
+			window.habibi = {{ habibi_boot }};
 		</script>
 		<script type="module" src="{{ script }}"></script>
 	</body>

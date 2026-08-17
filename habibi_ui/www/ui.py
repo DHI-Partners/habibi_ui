@@ -36,12 +36,17 @@ def get_context(context):
 		frappe.redirect(f"/login?{urlencode({'redirect-to': frappe.request.path})}")
 
 	assets = assets_from_manifest()
+	csrf_token = frappe.sessions.get_csrf_token()
 	context.update(
 		{
 			"no_cache": 1,
 			"lang": frappe.local.lang,
 			"user": frappe.session.user,
-			"csrf_token": frappe.sessions.get_csrf_token(),
+			"csrf_token": csrf_token,
+			# Jinja у Frappe рендерит без автоэкранирования, поэтому пользовательские
+			# значения нельзя подставлять в JS сырой интерполяцией строк — собираем
+			# готовый JSON в Python и выводим его в шаблоне как есть.
+			"habibi_boot": json.dumps({"csrf_token": csrf_token, "user": frappe.session.user}),
 			"script": assets["js"],
 			"styles": assets["css"],
 		}
