@@ -2,6 +2,20 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Блокирующий скрипт: применяет тему до первой отрисовки, чтобы не было
+      // мигания. Ручной выбор побеждает системный в обе стороны — см.
+      // frontend/src/shared/lib/theme.ts.
+      (function () {
+        try {
+          var stored = localStorage.getItem("habibi:theme");
+          var dark = stored ? stored === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (e) {
+          /* localStorage/matchMedia недоступны — остаёмся на светлой теме */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

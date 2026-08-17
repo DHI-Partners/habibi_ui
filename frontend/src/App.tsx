@@ -1,21 +1,24 @@
-import { useMe } from "./shared/api/queries";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
+
+import { AppShell } from "./shared/ui/AppShell";
+import { WorkspaceContent } from "./shared/ui/WorkspaceContent";
+
+const HOME_WORKSPACE = "Home";
+
+function NamedWorkspaceRoute() {
+  const { name } = useParams<{ name: string }>();
+  // react-router уже декодирует параметр пути, повторное decodeURIComponent не нужно.
+  return <WorkspaceContent name={name ?? HOME_WORKSPACE} />;
+}
 
 export function App() {
-  const { data, isPending, error } = useMe();
-
-  if (isPending) return <p>Загрузка…</p>;
-  if (error) return <p>Ошибка: {error.message}</p>;
-
   return (
-    <main>
-      <h1>{data.full_name}</h1>
-      <nav>
-        <ul>
-          {data.modules.map((module) => (
-            <li key={module.key}>{module.label}</li>
-          ))}
-        </ul>
-      </nav>
-    </main>
+    <AppShell>
+      <Routes>
+        <Route path="/" element={<WorkspaceContent name={HOME_WORKSPACE} />} />
+        <Route path="/w/:name" element={<NamedWorkspaceRoute />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppShell>
   );
 }
