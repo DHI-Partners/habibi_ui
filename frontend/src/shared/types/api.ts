@@ -12,3 +12,36 @@ export interface Me {
   roles: string[];
   modules: Module[];
 }
+
+export interface WorkspaceRef {
+  name: string;
+  label: string;
+  icon: string;
+  parent: string;
+}
+
+export interface Shortcut {
+  label: string;
+  link_to: string;
+  link_type: string;
+  icon: string;
+  color: string;
+}
+
+export interface CardLink {
+  label: string;
+  link_to: string;
+  link_type: string;
+}
+
+export interface Card {
+  title: string;
+  links: CardLink[];
+}
+
+export interface WorkspacePage {
+  name: string;
+  label: string;
+  shortcuts: Shortcut[];
+  cards: Card[];
+}

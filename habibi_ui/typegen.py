@@ -9,11 +9,12 @@ from dataclasses import fields, is_dataclass
 from typing import get_type_hints
 
 from habibi_ui.api.v1.session import Me, Module
+from habibi_ui.api.v1.workspaces import Card, CardLink, Shortcut, WorkspacePage, WorkspaceRef
 
 HEADER = "// Файл сгенерирован командой `bench --site <site> habibi-ui generate-types`.\n// Править руками бессмысленно — изменения затрёт следующая генерация.\n"
 
 # Порядок значим: зависимые типы должны быть объявлены раньше тех, кто их использует.
-EXPORTED = [Module, Me]
+EXPORTED = [Module, Me, WorkspaceRef, Shortcut, CardLink, Card, WorkspacePage]
 
 SCALARS = {str: "string", int: "number", float: "number", bool: "boolean"}
 
