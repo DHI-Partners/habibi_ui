@@ -1,18 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 
+import type { Me } from "../types/api";
 import { call } from "./client";
 
-export interface Module {
-  key: string;
-  label: string;
-}
-
-export interface Me {
-  user: string;
-  full_name: string;
-  roles: string[];
-  modules: Module[];
-}
+export type { Me, Module } from "../types/api";
 
 export function useMe() {
   return useQuery({
