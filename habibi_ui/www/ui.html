@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Habibi</title>
+		<script>
+			window.habibi = {{ habibi_boot }};
+		</script>
+		<script>
+			// Блокирующий скрипт: применяет тему до первой отрисовки, чтобы не
+			// было мигания. Ручной выбор в нашем переключателе (localStorage)
+			// побеждает; без него дефолт — тема, выбранная пользователем в
+			// самом Frappe (window.habibi.desk_theme). Логика продублирована в
+			// frontend/src/shared/lib/theme.ts и должна совпадать с ней.
+			(function () {
+				try {
+					var stored = localStorage.getItem("habibi:theme");
+					var dark;
+					if (stored === "light" || stored === "dark") {
+						dark = stored === "dark";
+					} else {
+						var deskTheme = window.habibi && window.habibi.desk_theme;
+						if (deskTheme === "Dark") {
+							dark = true;
+						} else if (deskTheme === "Automatic") {
+							dark = matchMedia("(prefers-color-scheme: dark)").matches;
+						} else {
+							dark = false;
+						}
+					}
+					document.documentElement.classList.toggle("dark", dark);
+				} catch (e) {
+					/* localStorage/matchMedia недоступны — остаёмся на светлой теме */
+				}
+			})();
+		</script>
+		{% for style in styles %}
+		<link rel="stylesheet" href="{{ style }}" />
+		{% endfor %}
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="{{ script }}"></script>
+	</body>
+</html>

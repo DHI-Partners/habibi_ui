@@ -329,10 +329,12 @@ class TestSessionMe(IntegrationTestCase):
 		self.assertIn("erpnext", keys)
 
 	def test_guest_is_rejected(self):
+		# Возврат пользователя через addCleanup, а не последней строкой тела:
+		# при падении assert соседние тесты не должны достаться Guest-у.
+		self.addCleanup(frappe.set_user, "Administrator")
 		frappe.set_user("Guest")
 		with self.assertRaises(frappe.PermissionError):
 			me()
-		frappe.set_user("Administrator")
 ```
 
 - [ ] **Step 2: Запустить тесты и убедиться, что они падают**
@@ -637,6 +639,9 @@ import os
 from urllib.parse import urlencode
 
 import frappe
+# Явный импорт обязателен: frappe.sessions не подтягивается пакетом frappe.
+# Так же делает frappe/www/desk.py.
+import frappe.sessions
 from frappe import _
 
 no_cache = 1
@@ -1216,7 +1221,7 @@ bench --site erp.ayntayba.com migrate"'
 curl -s -o /dev/null -w "%{http_code}\n" https://erp.ayntayba.com/ui
 ```
 
-Expected: `403` для анонимного запроса — это правильный ответ страницы гостю. Затем открыть `https://erp.ayntayba.com/ui` в браузере под своим пользователем: видно полное имя и список модулей.
+Expected: `301` для анонимного запроса — редирект на `/login`, ровно как отдаёт гостю сам Desk. Внутри `get_context` выставляется `status_code = 403`, но `frappe.redirect()` поднимает исключение со статусом 301 и затирает его; итоговый HTTP-статус именно 301. Затем открыть `https://erp.ayntayba.com/ui` в браузере под своим пользователем: видно полное имя и список модулей.
 
 - [ ] **Step 7: Проверить включение по роли**
 

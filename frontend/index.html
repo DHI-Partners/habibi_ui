@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // Блокирующий скрипт: применяет тему до первой отрисовки, чтобы не было
+      // мигания. Ручной выбор в переключателе побеждает; без него, как и в
+      // проде без window.habibi.desk_theme, дефолт — светлая тема, а не
+      // системная — см. frontend/src/shared/lib/theme.ts.
+      (function () {
+        try {
+          var stored = localStorage.getItem("habibi:theme");
+          document.documentElement.classList.toggle("dark", stored === "dark");
+        } catch (e) {
+          /* localStorage недоступен — остаёмся на светлой теме */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
