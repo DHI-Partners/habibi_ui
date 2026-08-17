@@ -37,6 +37,11 @@ def get_context(context):
 
 	assets = assets_from_manifest()
 	csrf_token = frappe.sessions.get_csrf_token()
+	# Тема по умолчанию — та, что пользователь уже выбрал в самом Frappe
+	# (User.desk_theme), а не тема ОС: иначе при системной тёмной теме наш
+	# интерфейс становится чёрным, а Desk рядом остаётся белым. Явный выбор в
+	# нашем переключателе всё равно главнее — см. frontend/src/shared/lib/theme.ts.
+	desk_theme = frappe.db.get_value("User", frappe.session.user, "desk_theme") or ""
 	context.update(
 		{
 			"no_cache": 1,
@@ -46,7 +51,13 @@ def get_context(context):
 			# Jinja у Frappe рендерит без автоэкранирования, поэтому пользовательские
 			# значения нельзя подставлять в JS сырой интерполяцией строк — собираем
 			# готовый JSON в Python и выводим его в шаблоне как есть.
-			"habibi_boot": json.dumps({"csrf_token": csrf_token, "user": frappe.session.user}),
+			"habibi_boot": json.dumps(
+				{
+					"csrf_token": csrf_token,
+					"user": frappe.session.user,
+					"desk_theme": desk_theme,
+				}
+			),
 			"script": assets["js"],
 			"styles": assets["css"],
 		}

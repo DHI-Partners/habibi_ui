@@ -71,7 +71,7 @@ export function WorkspaceContent({ name }: { name: string }) {
               className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 text-center text-foreground no-underline transition-colors hover:border-primary/50 hover:shadow-sm"
             >
               <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon name={shortcut.icon} className="size-5" />
+                <Icon name={shortcut.icon} label={shortcut.label} className="size-5" />
               </span>
               <span className="text-sm font-medium">{shortcut.label}</span>
             </a>

@@ -38,7 +38,7 @@ interface SidebarProps {
 }
 
 function workspaceHref(name: string): string {
-  return name === "Home" ? "/" : `/w/${encodeURIComponent(name)}`;
+  return `/w/${encodeURIComponent(name)}`;
 }
 
 function SidebarNode({
@@ -70,6 +70,7 @@ function SidebarNode({
       >
         <Icon
           name={node.icon}
+          label={node.label}
           className={cn("size-4 flex-none", isActive ? "text-primary" : "text-muted-foreground")}
         />
         {!collapsed && <span className="overflow-hidden text-ellipsis">{node.label}</span>}
