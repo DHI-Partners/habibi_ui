@@ -3,4 +3,7 @@ __pycache__/
 .venv/
 node_modules/
 habibi_ui/public/frontend/
+# Симлинк, который создаёт сама Frappe: generate_assets_map линкует node_modules
+# приложения в его ассеты. Правило выше со слешем на ссылку не срабатывает.
+habibi_ui/public/node_modules
 .DS_Store
