@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { AppShell } from "./shared/ui/AppShell";
-import { Launcher } from "./shared/ui/Launcher";
+import { GroupPage, Launcher, SectionPage } from "./shared/ui/Launcher";
 import { WorkspaceContent } from "./shared/ui/WorkspaceContent";
 
 function NamedWorkspaceRoute() {
@@ -23,6 +23,8 @@ export function App() {
           </AppShell>
         }
       />
+      <Route path="/g/:name" element={<GroupPage />} />
+      <Route path="/s/:key" element={<SectionPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

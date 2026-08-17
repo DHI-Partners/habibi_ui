@@ -81,9 +81,48 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+
+    /* Цвета модулей. Приглушённые и одинаковой светлоты, чтобы сетка не рябила.
+       Клиент переопределяет их вместе с остальным брендом — компоненты берут
+       цвет только по имени переменной, значений в коде нет. */
+    --module-accounts: oklch(0.55 0.19 258);
+    --module-selling: oklch(0.58 0.14 163);
+    --module-buying: oklch(0.65 0.16 62);
+    --module-stock: oklch(0.53 0.22 292);
+    --module-manufacturing: oklch(0.57 0.21 27);
+    --module-projects: oklch(0.58 0.12 220);
+    --module-crm: oklch(0.57 0.2 350);
+    --module-assets: oklch(0.63 0.16 130);
+    --module-subcontracting: oklch(0.63 0.19 45);
+    --module-quality: oklch(0.6 0.11 185);
+    --module-support: oklch(0.52 0.19 275);
+    --module-website: oklch(0.58 0.14 234);
+    --module-integrations: oklch(0.55 0.22 305);
+    --module-core: oklch(0.55 0.03 258);
+    --module-setup: oklch(0.55 0.02 60);
+    --module-default: oklch(0.55 0.02 258);
 }
 
 .dark {
+    /* На тёмном фоне те же цвета читаются хуже, поэтому светлее и чуть менее
+       насыщенные. Имена переменных те же — компоненты ничего не меняют. */
+    --module-accounts: oklch(0.72 0.15 258);
+    --module-selling: oklch(0.74 0.12 163);
+    --module-buying: oklch(0.78 0.13 62);
+    --module-stock: oklch(0.71 0.16 292);
+    --module-manufacturing: oklch(0.72 0.16 27);
+    --module-projects: oklch(0.74 0.1 220);
+    --module-crm: oklch(0.73 0.15 350);
+    --module-assets: oklch(0.78 0.13 130);
+    --module-subcontracting: oklch(0.77 0.14 45);
+    --module-quality: oklch(0.75 0.09 185);
+    --module-support: oklch(0.7 0.15 275);
+    --module-website: oklch(0.74 0.11 234);
+    --module-integrations: oklch(0.72 0.16 305);
+    --module-core: oklch(0.75 0.02 258);
+    --module-setup: oklch(0.75 0.02 60);
+    --module-default: oklch(0.75 0.02 258);
+
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);

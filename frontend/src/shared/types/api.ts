@@ -20,6 +20,40 @@ export interface WorkspaceRef {
   parent: string;
 }
 
+export interface DesktopItem {
+  key: string;
+  label: string;
+  icon: string;
+  logo: string;
+  color: string;
+  sidebar: string;
+  count: number;
+}
+
+export interface DesktopSection {
+  key: string;
+  label: string;
+  icon: string;
+  logo: string;
+  color: string;
+  sidebar: string;
+  count: number;
+  items: DesktopItem[];
+}
+
+export interface SidebarLink {
+  label: string;
+  link_to: string;
+  link_type: string;
+  icon: string;
+}
+
+export interface SidebarGroup {
+  key: string;
+  label: string;
+  links: SidebarLink[];
+}
+
 export interface Shortcut {
   label: string;
   link_to: string;
