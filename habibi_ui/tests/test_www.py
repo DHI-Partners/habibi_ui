@@ -1,7 +1,7 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from habibi_ui.www.ui import assets_from_manifest, get_context
+from habibi_ui.www.ui import assets_from_manifest, get_context, served_at_root
 
 
 class TestUiPage(IntegrationTestCase):
@@ -38,3 +38,21 @@ class TestUiPage(IntegrationTestCase):
 
 		self.assertTrue(frappe.flags.redirect_location.startswith("/login?"))
 		self.assertIn("redirect-to", frappe.flags.redirect_location)
+
+	def test_root_is_recognised_and_own_routes_are_not(self):
+		"""С корня уводим на /ui, иначе вложенные адреса не переживут перезагрузку:
+		website_route_rules знают только про /ui/<path>."""
+		self.addCleanup(lambda: setattr(frappe.local, "request", None))
+
+		frappe.local.request = frappe._dict(path="/ui")
+		self.assertFalse(served_at_root())
+
+		frappe.local.request = frappe._dict(path="/ui/s/Accounting")
+		self.assertFalse(served_at_root())
+
+		frappe.local.request = frappe._dict(path="/")
+		self.assertTrue(served_at_root())
+
+		# «/uikit» — чужой путь, а не наш префикс
+		frappe.local.request = frappe._dict(path="/uikit")
+		self.assertTrue(served_at_root())

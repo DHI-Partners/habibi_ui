@@ -13,6 +13,7 @@ from frappe import _
 no_cache = 1
 
 ASSET_PREFIX = "/assets/habibi_ui/frontend/"
+ROUTE = "/ui"
 
 
 def assets_from_manifest() -> dict:
@@ -29,11 +30,28 @@ def assets_from_manifest() -> dict:
 	}
 
 
+def served_at_root() -> bool:
+	"""Отдана ли страница на корне сайта.
+
+	Так бывает у обладателей роли-переключателя: role_home_page делает эту
+	страницу домашней, и роутер сайта рисует её по "/". Приложение живёт по
+	ROUTE — там его маршруты и правила website_route_rules, поэтому вложенные
+	адреса на корне не пережили бы перезагрузку.
+	"""
+	path = (getattr(frappe.local, "request", None) and frappe.request.path) or ROUTE
+	return not (path == ROUTE or path.startswith(ROUTE + "/"))
+
+
 def get_context(context):
 	if frappe.session.user == "Guest":
 		frappe.response["status_code"] = 403
 		frappe.msgprint(_("Войдите, чтобы открыть страницу."))
 		frappe.redirect(f"/login?{urlencode({'redirect-to': frappe.request.path})}")
+
+	# Одна каноническая точка входа: с корня уводим на неё, а не рисуем
+	# приложение по чужому пути.
+	if served_at_root():
+		frappe.redirect(ROUTE)
 
 	assets = assets_from_manifest()
 	csrf_token = frappe.sessions.get_csrf_token()
