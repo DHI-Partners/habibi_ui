@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass
 
 import frappe
+import frappe.sessions
 from frappe import _
 
 # Заголовки модулей задаются здесь, а не берутся из app_title: в интерфейсе
@@ -46,3 +47,23 @@ def me() -> dict:
 			modules=_modules(),
 		)
 	)
+
+
+@frappe.whitelist(methods=["GET"])
+def boot() -> dict:
+	"""То же, что страница-обёртка кладёт в window.habibi.
+
+	Нужен только vite dev server: под ним index.html отдаёт сам vite, а не
+	www/ui.html, и подставить boot в разметку некому. Метод доступен по GET
+	намеренно — CSRF-токен нельзя получить запросом, который сам его требует.
+	Ничего сверх того, что обёртка и так отдаёт этому же пользователю, здесь
+	не появляется.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Требуется вход"), frappe.PermissionError)
+
+	return {
+		"csrf_token": frappe.sessions.get_csrf_token(),
+		"user": frappe.session.user,
+		"desk_theme": frappe.db.get_value("User", frappe.session.user, "desk_theme") or "",
+	}

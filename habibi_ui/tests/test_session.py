@@ -1,7 +1,7 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from habibi_ui.api.v1.session import me
+from habibi_ui.api.v1.session import boot, me
 
 
 class TestSessionMe(IntegrationTestCase):
@@ -29,3 +29,18 @@ class TestSessionMe(IntegrationTestCase):
 		frappe.set_user("Guest")
 		with self.assertRaises(frappe.PermissionError):
 			me()
+
+
+class TestSessionBoot(IntegrationTestCase):
+	def test_отдаёт_тот_же_состав_что_страница_обёртка(self):
+		frappe.set_user("Administrator")
+		result = boot()
+		self.assertEqual(set(result), {"csrf_token", "user", "desk_theme"})
+		self.assertEqual(result["user"], "Administrator")
+		self.assertTrue(result["csrf_token"])
+
+	def test_гость_отвергается(self):
+		self.addCleanup(frappe.set_user, "Administrator")
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			boot()

@@ -13,6 +13,16 @@ export default defineConfig({
   },
   // Frappe отдаёт public/ приложения по этому префиксу.
   base: "/assets/habibi_ui/frontend/",
+  // Под vite страница живёт на :5173, а бенч на :8000. Куку сессии браузер
+  // отдаёт обоим — она привязана к хосту localhost, а не к порту, — но
+  // запросы всё равно надо довести до бенча, иначе они уйдут в vite.
+  server: {
+    proxy: {
+      "/api": "http://localhost:8000",
+      "/assets": "http://localhost:8000",
+      "/files": "http://localhost:8000",
+    },
+  },
   build: {
     outDir: "../habibi_ui/public/frontend",
     emptyOutDir: true,
