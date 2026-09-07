@@ -59,7 +59,16 @@ def boot() -> dict:
 	намеренно — CSRF-токен нельзя получить запросом, который сам его требует.
 	Ничего сверх того, что обёртка и так отдаёт этому же пользователю, здесь
 	не появляется.
+
+	Гейт на developer_mode: метод permanently whitelisted и в проде тоже,
+	хотя нужен только для vite dev server. Сегодня same-origin делает его
+	безопасным, но это CSRF-token oracle в день, когда кто-то включит
+	allow_cors. В проде window.habibi и так уже в разметке www/ui.html —
+	вызывать boot там незачем.
 	"""
+	if not frappe.conf.get("developer_mode"):
+		frappe.throw(_("Недоступно"), frappe.PermissionError)
+
 	if frappe.session.user == "Guest":
 		frappe.throw(_("Требуется вход"), frappe.PermissionError)
 

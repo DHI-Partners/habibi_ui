@@ -64,3 +64,14 @@ class TestSessionBoot(IntegrationTestCase):
 		frappe.set_user("Guest")
 		with self.assertRaises(frappe.PermissionError):
 			boot()
+
+	def test_вне_developer_mode_отвергается(self):
+		# На dev-сайте developer_mode включён, поэтому обратный случай
+		# проверяется подменой конфигурации, а не сменой сайта: в проде это
+		# permanently whitelisted GET, отдающий CSRF-токен, и его отключение
+		# — единственное, что не даёт ему стать CSRF-token oracle в день,
+		# когда где-то включат allow_cors.
+		frappe.set_user("Administrator")
+		with patch.dict(frappe.conf, {"developer_mode": 0}):
+			with self.assertRaises(frappe.PermissionError):
+				boot()
