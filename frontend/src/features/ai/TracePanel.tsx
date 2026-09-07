@@ -33,15 +33,34 @@ function toText(data: Record<string, unknown>): string {
 }
 
 export function TracePanel({ steps }: { steps: TraceStep[] }) {
-  const [open, setOpen] = useState<string | null>("completion");
+  // По умолчанию развёрнуты все шаги — весь разбор читается сверху вниз без
+  // кликов, ради этого панель и существует. Держим не имя открытого шага, а
+  // множество СВЁРНУТЫХ: пустое множество естественно означает «всё видно»,
+  // и клик по шагу лишь добавляет/убирает его из множества, не трогая
+  // остальные — в отличие от одного «open», где раскрытие одного шага
+  // означало закрытие всех прочих.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
-  // Новая трассировка — новый разбор, начинать его надо с начала. Состояние
-  // сбрасывается здесь, а не ключом от вызывающего: оно принадлежит панели, и
-  // требовать от каждого места вызова помнить про key — ловушка.
+  // Новая трассировка — новый разбор, начинать его надо с начала (снова все
+  // шаги развёрнуты). Состояние сбрасывается здесь, а не ключом от
+  // вызывающего: оно принадлежит панели, и требовать от каждого места вызова
+  // помнить про key — ловушка.
   const [shown, setShown] = useState(steps);
   if (shown !== steps) {
     setShown(steps);
-    setOpen("completion");
+    setCollapsed(new Set());
+  }
+
+  function toggle(step: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(step)) {
+        next.delete(step);
+      } else {
+        next.add(step);
+      }
+      return next;
+    });
   }
 
   return (
@@ -51,11 +70,11 @@ export function TracePanel({ steps }: { steps: TraceStep[] }) {
         <div key={step.step} className="mb-1">
           <button
             className="w-full rounded-lg px-2 py-1 text-left hover:bg-accent"
-            onClick={() => setOpen(open === step.step ? null : step.step)}
+            onClick={() => toggle(step.step)}
           >
             {TITLES[step.step] ?? step.step}
           </button>
-          {open === step.step && (
+          {!collapsed.has(step.step) && (
             // Перенос по словам обязателен: в completion лежит system prompt
             // целиком, и без него панель уезжает горизонтальной прокруткой.
             <pre className="mt-1 rounded-lg bg-muted p-2 text-xs break-words whitespace-pre-wrap">

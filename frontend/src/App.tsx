@@ -26,14 +26,10 @@ export function App() {
       />
       <Route path="/g/:name" element={<GroupPage />} />
       <Route path="/s/:key" element={<SectionPage />} />
-      <Route
-        path="/ai"
-        element={
-          <AppShell>
-            <ChatPage />
-          </AppShell>
-        }
-      />
+      {/* AI-чат — инструмент отладки, а не рабочее пространство ERPNext: своя
+          тонкая шапка вместо AppShell, чтобы не тащить список модулей и
+          не сжимать три колонки в max-w контента. См. ChatPage. */}
+      <Route path="/ai" element={<ChatPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
