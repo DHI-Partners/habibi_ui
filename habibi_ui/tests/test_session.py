@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import frappe
 from frappe.tests import IntegrationTestCase
 
@@ -28,6 +30,17 @@ class TestSessionMe(IntegrationTestCase):
 		result = me()
 		keys = [m["key"] for m in result["modules"]]
 		self.assertEqual("habibi_ai" in keys, "habibi_ai" in frappe.get_installed_apps())
+
+	def test_ии_модуль_скрыт_когда_не_установлен(self):
+		# Обратное направление проверяется подменой списка приложений: на этом
+		# сайте habibi_ai установлен, и без подмены случай недостижим. Без этого
+		# теста регрессия, в которой _modules() перестаёт фильтровать вообще,
+		# прошла бы незамеченной — обе стороны равенства выше уехали бы в True
+		# одновременно. Скрытность раздела — то, на чём держится выборочная
+		# выдача модуля тенантам, поэтому проверяется отдельно.
+		with patch("frappe.get_installed_apps", return_value=["frappe", "erpnext"]):
+			keys = [m["key"] for m in me()["modules"]]
+		self.assertNotIn("habibi_ai", keys)
 
 	def test_guest_is_rejected(self):
 		# Возврат пользователя через addCleanup, а не последней строкой тела:
