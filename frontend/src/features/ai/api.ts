@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { call } from "../../shared/api/client";
-import type { Bot, ChatRef, ChatState, Message, SendResult } from "./types";
+import type { Bot, BotConfig, ChatRef, ChatState, Message, SendResult } from "./types";
 
 export function useBots() {
   return useQuery({
@@ -42,6 +42,18 @@ export function useCreateChat() {
     mutationFn: (botId: number) =>
       call<Pick<ChatRef, "id">>("habibi_ai.api.create_chat", { bot_id: botId }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai", "chats"] }),
+  });
+}
+
+export function useBotConfig(botId: number | null) {
+  return useQuery({
+    queryKey: ["ai", "bot-config", botId],
+    // Без роли Habibi AI Debug сервер отвечает отказом (403), а не урезанным
+    // объектом — тексты промптов защищены так же, как трассировка в
+    // send_message. enabled: botId !== null дополнительно бережёт от запроса
+    // без выбранного бота, а не от запроса без роли — это делает сервер.
+    queryFn: () => call<BotConfig>("habibi_ai.api.get_bot_config", { bot_id: botId }),
+    enabled: botId !== null,
   });
 }
 

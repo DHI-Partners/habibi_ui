@@ -2,6 +2,7 @@ import { LayoutGrid } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { BotConfigPanel } from "./BotConfigPanel";
 import { Button } from "../../shared/ui/button";
 import { Skeleton } from "../../shared/ui/skeleton";
 import { useBots, useChat, useChats, useCreateChat, useSendMessage } from "./api";
@@ -14,7 +15,37 @@ import type { ChatState, Message, TraceStep } from "./types";
  * в AppShell.AsideHeader — только в виде тонкой шапки самого чата, а не
  * бокового меню со списком пространств ERPNext, которое сюда не относится.
  */
-function ChatHeader() {
+type View = "chat" | "config";
+
+/**
+ * Вкладка вместо отдельного экрана: конфигурация — это тот же разбор
+ * поведения бота, что и трассировка справа, только не по одному ответу, а
+ * по тому, что вообще заложено. Уводить её на отдельный роут значило бы
+ * терять состояние открытого чата при переключении туда и обратно.
+ */
+function ViewTabs({ view, onChange }: { view: View; onChange: (view: View) => void }) {
+  const tabs: { key: View; label: string }[] = [
+    { key: "chat", label: "Чат" },
+    { key: "config", label: "Конфигурация" },
+  ];
+  return (
+    <nav className="flex gap-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.key}
+          onClick={() => onChange(tab.key)}
+          className={`rounded-lg px-2 py-1 text-sm ${
+            view === tab.key ? "bg-accent font-medium" : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function ChatHeader({ view, onChangeView }: { view: View; onChangeView: (view: View) => void }) {
   return (
     <header className="flex h-14 flex-none items-center gap-3 border-b border-border bg-card px-4">
       <Link
@@ -27,6 +58,9 @@ function ChatHeader() {
       </Link>
       <span className="text-muted-foreground">/</span>
       <h1 className="truncate text-sm font-medium text-foreground">Отладка AI-чата</h1>
+      <div className="ml-auto">
+        <ViewTabs view={view} onChange={onChangeView} />
+      </div>
     </header>
   );
 }
@@ -60,6 +94,7 @@ function ConversationState({ chat }: { chat: ChatState }) {
 export function ChatPage() {
   const [chatId, setChatId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  const [view, setView] = useState<View>("chat");
 
   // Трассировки копятся по id сообщения-ассистента, которое они объясняют, а
   // не в одном слоте: экран отладочный, и разбор трёхходовой давности нужен
@@ -181,7 +216,7 @@ export function ChatPage() {
     // на строке колонок — иначе overflow-y-auto внутри aside/section не
     // сработает и растянет страницу вместо внутренней прокрутки.
     <div className="flex h-svh flex-col bg-background text-foreground">
-      <ChatHeader />
+      <ChatHeader view={view} onChangeView={setView} />
       <div className="flex min-h-0 flex-1 gap-4 p-4">
         <aside className="w-64 shrink-0 overflow-y-auto rounded-2xl border border-border bg-card p-2">
           <Button className="mb-2 w-full" onClick={start} disabled={!bots.data?.length}>
@@ -202,70 +237,79 @@ export function ChatPage() {
           ))}
         </aside>
 
-        <section className="flex min-w-0 flex-1 flex-col">
-          {chat.data && <ConversationState chat={chat.data.chat} />}
+        {view === "config" ? (
+          // Бот по умолчанию — бот открытого чата, а если чат не открыт —
+          // первый в списке; BotConfigPanel сам решает, когда это менять
+          // (см. её комментарий про defaultBotId).
+          <BotConfigPanel bots={bots.data} defaultBotId={chat.data?.chat.bot_id ?? bots.data?.[0]?.id ?? null} />
+        ) : (
+          <>
+            <section className="flex min-w-0 flex-1 flex-col">
+              {chat.data && <ConversationState chat={chat.data.chat} />}
 
-          <div className="flex-1 overflow-y-auto rounded-2xl border border-border bg-card p-4">
-            {chatId === null && (
-              <p className="text-muted-foreground">Выберите чат или начните новый.</p>
-            )}
-            {chat.data?.messages.map((message) => (
-              <div
-                key={message.id}
-                className={`mb-2 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              <div className="flex-1 overflow-y-auto rounded-2xl border border-border bg-card p-4">
+                {chatId === null && (
+                  <p className="text-muted-foreground">Выберите чат или начните новый.</p>
+                )}
+                {chat.data?.messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`mb-2 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <span
+                      onClick={() => selectMessage(message)}
+                      className={`max-w-[80%] rounded-2xl bg-muted px-3 py-2 whitespace-pre-wrap ${
+                        message.role === "assistant" ? "cursor-pointer" : ""
+                      } ${message.id === selectedMessageId ? "ring-2 ring-primary" : ""}`}
+                      title={message.role === "assistant" ? "Показать разбор обработки" : undefined}
+                    >
+                      {message.content}
+                    </span>
+                  </div>
+                ))}
+                {/* Своё сообщение до ответа сервера — той же формы, что и настоящие
+                    user-бабблы (чтобы не дёргалось при замене), плюс видимый
+                    признак, что это ещё не подтверждено сервером. Показываем
+                    только для текущего чата: pending.chatId защищает от
+                    всплытия в чужой ленте, если пользователь успел
+                    переключиться, пока ответ летел. */}
+                {pending && pending.chatId === chatId && (
+                  <div className="mb-2 flex justify-end">
+                    <span className="max-w-[80%] rounded-2xl bg-muted px-3 py-2 whitespace-pre-wrap opacity-60">
+                      {pending.text}
+                      <span className="ml-2 text-xs text-muted-foreground">отправляется…</span>
+                    </span>
+                  </div>
+                )}
+                {send.error && <p className="text-destructive">{send.error.message}</p>}
+              </div>
+
+              <form
+                className="mt-3 flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  submit();
+                }}
               >
-                <span
-                  onClick={() => selectMessage(message)}
-                  className={`max-w-[80%] rounded-2xl bg-muted px-3 py-2 whitespace-pre-wrap ${
-                    message.role === "assistant" ? "cursor-pointer" : ""
-                  } ${message.id === selectedMessageId ? "ring-2 ring-primary" : ""}`}
-                  title={message.role === "assistant" ? "Показать разбор обработки" : undefined}
-                >
-                  {message.content}
-                </span>
-              </div>
-            ))}
-            {/* Своё сообщение до ответа сервера — той же формы, что и настоящие
-                user-бабблы (чтобы не дёргалось при замене), плюс видимый
-                признак, что это ещё не подтверждено сервером. Показываем
-                только для текущего чата: pending.chatId защищает от
-                всплытия в чужой ленте, если пользователь успел
-                переключиться, пока ответ летел. */}
-            {pending && pending.chatId === chatId && (
-              <div className="mb-2 flex justify-end">
-                <span className="max-w-[80%] rounded-2xl bg-muted px-3 py-2 whitespace-pre-wrap opacity-60">
-                  {pending.text}
-                  <span className="ml-2 text-xs text-muted-foreground">отправляется…</span>
-                </span>
-              </div>
-            )}
-            {send.error && <p className="text-destructive">{send.error.message}</p>}
-          </div>
+                <input
+                  className="flex-1 rounded-lg border border-border px-3 py-2"
+                  placeholder="Сообщение"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  disabled={chatId === null}
+                />
+                <Button type="submit" disabled={chatId === null || send.isPending}>
+                  Отправить
+                </Button>
+              </form>
+            </section>
 
-          <form
-            className="mt-3 flex gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submit();
-            }}
-          >
-            <input
-              className="flex-1 rounded-lg border border-border px-3 py-2"
-              placeholder="Сообщение"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              disabled={chatId === null}
-            />
-            <Button type="submit" disabled={chatId === null || send.isPending}>
-              Отправить
-            </Button>
-          </form>
-        </section>
-
-        {/* Панель разбора теперь рисуется всегда: пустая трассировка — это
-            тоже сведения (нет роли, история без разбора, ничего не выбрано),
-            а не повод исчезнуть с экрана. См. TracePanel про absenceReason. */}
-        <TracePanel steps={traceSteps} absenceReason={traceAbsenceReason} />
+            {/* Панель разбора теперь рисуется всегда: пустая трассировка — это
+                тоже сведения (нет роли, история без разбора, ничего не выбрано),
+                а не повод исчезнуть с экрана. См. TracePanel про absenceReason. */}
+            <TracePanel steps={traceSteps} absenceReason={traceAbsenceReason} />
+          </>
+        )}
       </div>
     </div>
   );

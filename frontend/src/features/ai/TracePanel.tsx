@@ -170,10 +170,22 @@ function renderRaw(value: unknown) {
   );
 }
 
-function renderMultiline(value: string) {
+/**
+ * Единый стиль для многострочного текста, который стоит показать как есть, а
+ * не пытаться заново переизобрести где-то ещё: перенос по словам обязателен,
+ * иначе длинный system prompt уводит панель вбок (см. renderRaw). Помимо
+ * шагов трассировки тем же стилем показываются промпты в панели конфигурации
+ * бота (BotConfigPanel) — тексты той же природы, просто пришедшие не в
+ * разборе шага, а напрямую.
+ */
+export function PromptBlock({ text }: { text: string }) {
   return (
-    <pre className="rounded-lg bg-muted p-2 text-xs break-words whitespace-pre-wrap">{value}</pre>
+    <pre className="rounded-lg bg-muted p-2 text-xs break-words whitespace-pre-wrap">{text}</pre>
   );
+}
+
+function renderMultiline(value: string) {
+  return <PromptBlock text={value} />;
 }
 
 function renderPrimitiveList(value: unknown[], path: string) {

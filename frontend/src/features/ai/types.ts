@@ -46,6 +46,30 @@ export interface TraceStep {
   data: Record<string, unknown>;
 }
 
+// get_bot_config: то, что на самом деле определяет поведение бота, собранное
+// из трёх коллекций Directus в один ответ (см. api.py и engine.py). Доступен
+// только роли Habibi AI Debug — без неё сервер вовсе не отвечает 200, и хук
+// useBotConfig просто не запускается без botId.
+export interface ScenarioConfig {
+  scenario_key: string;
+  description: string | null;
+  max_history_messages: number | null;
+  max_stack: number | null;
+  /** Текст промпта сценария, уже подставленный вместо числового initial_prompt. */
+  prompt: string;
+}
+
+export interface BotConfig {
+  bot: {
+    id: number;
+    name: string | null;
+    global_system_prompt: string | null;
+  };
+  /** Инструкция роутера намерений (ai_prompts.name === "intent_router"). null, если не задана. */
+  router_prompt: string | null;
+  scenarios: ScenarioConfig[];
+}
+
 export interface SendResult {
   success: boolean;
   response: string;
