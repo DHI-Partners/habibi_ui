@@ -1,9 +1,9 @@
-import { ArrowLeft, ArrowUpRight, Bell } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Bell, Sparkles } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { useMe, useModules, useSidebarGroup } from "../api/queries";
 import { desktopVisual } from "../lib/moduleVisuals";
-import type { DesktopItem, DesktopSection, SidebarLink } from "../types/api";
+import type { DesktopItem, DesktopSection, Module, SidebarLink } from "../types/api";
 import { Button } from "./button";
 import { Skeleton } from "./skeleton";
 import { ThemeToggle } from "./ThemeToggle";
@@ -108,6 +108,38 @@ function Tile({ entry }: { entry: DesktopSection | DesktopItem }) {
     <Link to={target} className={shell} style={{ ["--hue" as string]: `var(${hueVar})` }}>
       {body}
     </Link>
+  );
+}
+
+/**
+ * Модули со своим экраном внутри интерфейса.
+ *
+ * Остальные плитки приходят из Desktop Icon и уводят в Desk. Здесь наоборот:
+ * модуль установлен (me().modules), значит экран у него свой, и уходить из
+ * интерфейса незачем. Список короткий и живёт здесь: маршрут знает роутер
+ * этого приложения, сервер о нём не догадывается.
+ */
+const INTERNAL_ROUTES: Record<string, string> = { habibi_ai: "/ai" };
+
+function InternalTiles({ modules }: { modules: Module[] }) {
+  const entries = modules.filter((module) => module.key in INTERNAL_ROUTES);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mb-3 grid grid-cols-[repeat(auto-fill,minmax(212px,1fr))] gap-3">
+      {entries.map((module) => (
+        <Link
+          key={module.key}
+          to={INTERNAL_ROUTES[module.key]}
+          className="group relative flex flex-col rounded-2xl border border-border bg-card p-4 pb-[18px] no-underline"
+        >
+          <span className="mb-4 grid size-11 place-items-center rounded-xl bg-accent">
+            <Sparkles className="size-[22px]" strokeWidth={1.75} aria-hidden="true" />
+          </span>
+          <span className="font-medium">{module.label}</span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -229,6 +261,8 @@ export function Launcher() {
           text="Обратитесь к администратору, чтобы получить доступ."
         />
       )}
+
+      {me && <InternalTiles modules={me.modules} />}
 
       {!isPending && !error && sections && sections.length > 0 && <Grid entries={sections} />}
     </Shell>

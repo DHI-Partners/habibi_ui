@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
+import { ChatPage } from "./features/ai/ChatPage";
 import { AppShell } from "./shared/ui/AppShell";
 import { GroupPage, Launcher, SectionPage } from "./shared/ui/Launcher";
 import { WorkspaceContent } from "./shared/ui/WorkspaceContent";
@@ -25,6 +26,14 @@ export function App() {
       />
       <Route path="/g/:name" element={<GroupPage />} />
       <Route path="/s/:key" element={<SectionPage />} />
+      <Route
+        path="/ai"
+        element={
+          <AppShell>
+            <ChatPage />
+          </AppShell>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
