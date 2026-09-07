@@ -18,6 +18,22 @@ export interface ChatRef {
   preview: string;
 }
 
+// get_chat отдаёт строку customer_chats как есть (fields: "*"), а не то, что
+// удобно списку чатов: id, bot_id, current_scenario, scenario_stack,
+// metadata — и НЕ title/preview, которых в таблице нет вовсе, их считает
+// list_chats из сообщений. Раньше useChat обещал ChatRef без title/preview
+// через Omit и на этом останавливался, выбрасывая scenario_stack и metadata,
+// которые сервер уже присылает — ревью поймало именно эту недостачу. Отдельный
+// тип точнее Omit<ChatRef, ...>: он говорит, что здесь есть, а не только чего
+// нет.
+export interface ChatState {
+  id: number;
+  bot_id: number;
+  current_scenario: string | null;
+  scenario_stack: string[];
+  metadata: Record<string, unknown> | null;
+}
+
 export interface Message {
   id: number;
   role: "user" | "assistant";

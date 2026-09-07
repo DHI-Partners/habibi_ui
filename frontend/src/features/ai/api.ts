@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { call } from "../../shared/api/client";
-import type { Bot, ChatRef, Message, SendResult } from "./types";
+import type { Bot, ChatRef, ChatState, Message, SendResult } from "./types";
 
 export function useBots() {
   return useQuery({
@@ -20,15 +20,15 @@ export function useChats() {
 export function useChat(chatId: number | null) {
   return useQuery({
     queryKey: ["ai", "chat", chatId],
-    // title и preview здесь не приходят: они вычисляются из сообщений внутри
-    // list_chats, а get_chat отдаёт строку customer_chats как есть — колонки
-    // под них в схеме нет вовсе. Обещать их в типе значило бы заглушить
-    // компилятор ровно там, где в рантайме окажется undefined.
+    // ChatState, а не Omit<ChatRef, "title" | "preview">: title и preview
+    // здесь и правда не приходят (их считает list_chats из сообщений, в
+    // схеме под них колонки нет), но current_scenario, scenario_stack и
+    // metadata — приходят, сервер отдаёт строку customer_chats целиком
+    // (fields: "*"). Omit говорил только чего нет и терял то, что есть.
     queryFn: () =>
-      call<{ chat: Omit<ChatRef, "title" | "preview">; messages: Message[] }>(
-        "habibi_ai.api.get_chat",
-        { chat_id: chatId },
-      ),
+      call<{ chat: ChatState; messages: Message[] }>("habibi_ai.api.get_chat", {
+        chat_id: chatId,
+      }),
     enabled: chatId !== null,
   });
 }
