@@ -46,6 +46,9 @@ export function ChatPage() {
     send.mutate(text, {
       onSuccess: (result) =>
         setTrace(result.debug ? { chatId: sentFrom, steps: result.debug } : null),
+      // Без этого неудавшийся round trip молча съедал бы набранное: draft уже
+      // очищен оптимистично, а send.error лишь показывает текст ошибки рядом.
+      onError: () => setDraft(text),
     });
   }
 
