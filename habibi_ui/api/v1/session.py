@@ -10,6 +10,7 @@ from frappe import _
 # они видны пользователю и переводятся отдельно от технических имён приложений.
 MODULE_LABELS = {
 	"erpnext": "Учёт",
+	"habibi_ai": "ИИ",
 	"habibi_telegram": "Телеграм",
 	"habibi_whatsapp": "WhatsApp",
 }

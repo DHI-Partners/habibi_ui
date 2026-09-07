@@ -22,6 +22,13 @@ class TestSessionMe(IntegrationTestCase):
 		keys = [m["key"] for m in result["modules"]]
 		self.assertIn("erpnext", keys)
 
+	def test_ии_модуль_виден_когда_установлен(self):
+		# habibi_ai стоит на dev-сайте; на сайтах без него ключа быть не должно,
+		# и это единственное, чем управляется доступность раздела в интерфейсе.
+		result = me()
+		keys = [m["key"] for m in result["modules"]]
+		self.assertEqual("habibi_ai" in keys, "habibi_ai" in frappe.get_installed_apps())
+
 	def test_guest_is_rejected(self):
 		# Возврат пользователя через addCleanup, а не последней строкой тела:
 		# при падении assert соседние тесты не должны достаться Guest-у.
