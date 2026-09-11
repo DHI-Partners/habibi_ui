@@ -4,11 +4,10 @@ import type { TraceStep } from "./types";
 
 const TITLES: Record<string, string> = {
   chat: "Состояние чата",
-  router: "Роутер намерений",
-  stack: "Стек сценариев",
-  scenario: "Сценарий",
+  tools: "Предложенные инструменты",
   completion: "Запрос в модель",
-  auto_return: "Автовозврат",
+  tool_use: "Вызов инструмента",
+  answer: "Ответ пользователю",
 };
 
 /**
@@ -22,26 +21,24 @@ const TITLES: Record<string, string> = {
 const FIELD_LABELS: Record<string, string> = {
   created: "Новый чат",
   bot_id: "ID бота",
-  current_scenario: "Текущий сценарий",
-  scenario_stack: "Стек сценариев",
   metadata: "Метаданные",
   prompt: "Промпт",
   raw: "Ответ (сырой)",
-  before: "Было",
-  after: "Стало",
-  key: "Ключ сценария",
-  max_stack: "Лимит стека",
-  action: "Действие",
-  reason: "Причина",
-  prompt_id: "ID промпта",
-  scenario_metadata: "Метаданные сценария",
-  merged_metadata: "Итоговые метаданные",
   system_prompt: "Системный промпт",
-  sent: "Отправлено сообщений",
-  total: "Всего сообщений",
-  max_history_messages: "Лимит истории",
-  triggered: "Сработал",
   messages: "Сообщения",
+  messages_count: "Сообщений в истории",
+  turn: "Накопленный ход",
+  configured: "Объявлено в сценариях",
+  offered: "Предложено модели",
+  missing: "Объявлено, но не прислано",
+  tools: "Инструменты",
+  id: "ID вызова",
+  name: "Имя инструмента",
+  input: "Аргументы",
+  length: "Длина ответа",
+  model: "Модель",
+  provider: "Провайдер",
+  maxTokens: "Лимит токенов",
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -318,7 +315,13 @@ export function TracePanel({
   // и клик по шагу лишь добавляет/убирает его из множества, не трогая
   // остальные — в отличие от одного «open», где раскрытие одного шага
   // означало закрытие всех прочих.
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  //
+  // Индекс, а не step.step: за один ход прокси теперь склеивает трассировки
+  // всех витков цикла в один плоский список, и одно и то же имя шага (chat,
+  // tools, completion...) повторяется столько раз, сколько было витков.
+  // Ключом по имени клик по одному "chat" раскрывал бы сразу все "chat" —
+  // позиция в списке уникальна всегда, имя шага больше нет.
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set());
 
   // Новый разбор — новый набор шагов, начинать его надо с начала (снова все
   // шаги развёрнуты). Состояние сбрасывается здесь, а не ключом от
@@ -333,13 +336,13 @@ export function TracePanel({
     setCollapsed(new Set());
   }
 
-  function toggle(step: string) {
+  function toggle(index: number) {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(step)) {
-        next.delete(step);
+      if (next.has(index)) {
+        next.delete(index);
       } else {
-        next.add(step);
+        next.add(index);
       }
       return next;
     });
@@ -349,17 +352,17 @@ export function TracePanel({
     <aside className="w-96 shrink-0 overflow-y-auto rounded-2xl border border-border bg-card p-3 text-sm">
       <h2 className="mb-2 font-medium">Как это обработалось</h2>
       {!steps && <p className="text-muted-foreground">{ABSENCE_TEXT[absenceReason]}</p>}
-      {steps?.map((step) => (
-        <div key={step.step} className="mb-1">
+      {steps?.map((step, index) => (
+        <div key={index} className="mb-1">
           <button
             className="w-full rounded-lg px-2 py-1 text-left hover:bg-accent"
-            onClick={() => toggle(step.step)}
+            onClick={() => toggle(index)}
           >
             {TITLES[step.step] ?? step.step}
           </button>
-          {!collapsed.has(step.step) && (
+          {!collapsed.has(index) && (
             <div className="mt-1 rounded-lg border border-border p-2 text-xs">
-              {renderStepData(step.data, step.step)}
+              {renderStepData(step.data, `${index}-${step.step}`)}
             </div>
           )}
         </div>
