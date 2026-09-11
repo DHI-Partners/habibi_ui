@@ -71,15 +71,6 @@ export function BotConfigPanel({ bots, defaultBotId }: { bots: Bot[] | undefined
           </div>
 
           <div>
-            <h2 className="mb-1 text-sm font-medium">Роутер намерений</h2>
-            {config.data.router_prompt ? (
-              <PromptBlock text={config.data.router_prompt} />
-            ) : (
-              <p className="text-xs italic text-muted-foreground">Промпт роутера не задан.</p>
-            )}
-          </div>
-
-          <div>
             <h2 className="mb-2 text-sm font-medium">Сценарии</h2>
             {config.data.scenarios.length === 0 && (
               <p className="text-xs italic text-muted-foreground">У бота нет сценариев.</p>
@@ -91,9 +82,8 @@ export function BotConfigPanel({ bots, defaultBotId }: { bots: Bot[] | undefined
                     <span className="rounded bg-muted px-1.5 py-0.5 font-mono">{scenario.scenario_key}</span>
                     {scenario.description && <span className="text-muted-foreground">{scenario.description}</span>}
                     <span className="text-muted-foreground">
-                      история: {scenario.max_history_messages ?? "—"}
+                      инструменты: {scenario.tools.length ? scenario.tools.join(", ") : "нет"}
                     </span>
-                    <span className="text-muted-foreground">стек: {scenario.max_stack ?? "—"}</span>
                   </div>
                   <PromptBlock text={scenario.prompt || "—"} />
                 </div>

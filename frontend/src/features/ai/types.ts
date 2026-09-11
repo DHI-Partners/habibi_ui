@@ -53,8 +53,8 @@ export interface TraceStep {
 export interface ScenarioConfig {
   scenario_key: string;
   description: string | null;
-  max_history_messages: number | null;
-  max_stack: number | null;
+  /** Имена инструментов, объявленных сценарию. Пустой список — сценарий без инструментов. */
+  tools: string[];
   /** Текст промпта сценария, уже подставленный вместо числового initial_prompt. */
   prompt: string;
 }
@@ -65,8 +65,6 @@ export interface BotConfig {
     name: string | null;
     global_system_prompt: string | null;
   };
-  /** Инструкция роутера намерений (ai_prompts.name === "intent_router"). null, если не задана. */
-  router_prompt: string | null;
   scenarios: ScenarioConfig[];
 }
 
