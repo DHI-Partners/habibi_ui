@@ -66,23 +66,18 @@ function ChatHeader({ view, onChangeView }: { view: View; onChangeView: (view: V
 }
 
 /**
- * Состояние диалога — то, с чем сейчас работает движок: текущий сценарий,
- * стек сценариев, metadata. Показывается всегда, без отправки чего-либо —
- * это как раз то, что проверяют ДО того, как набрать сообщение, а не после.
- * Пустой стек рисуем текстом "стек пуст", а не пустым местом: пустое место
- * неотличимо от "ещё не загрузилось" или "забыли отрендерить".
+ * Metadata чата — показывается всегда, без отправки чего-либо: это как раз
+ * то, что проверяют ДО того, как набрать сообщение, а не после. Движок и
+ * правда её читает и кладёт в trace-шаг "chat" при каждом ходе (см.
+ * process-message/index.ts), в отличие от current_scenario/scenario_stack,
+ * которые раньше показывались тут же: роутер намерений и стек сценариев
+ * удалены из движка, эти два поля навсегда оставались бы "нет"/"стек пуст" —
+ * такую вечную пустоту убрали вместе с блоком, который бы держался только
+ * на них.
  */
 function ConversationState({ chat }: { chat: ChatState }) {
   return (
     <div className="mb-3 flex flex-none flex-wrap items-baseline gap-x-5 gap-y-1 rounded-2xl border border-border bg-card px-3 py-2 text-xs">
-      <span>
-        <span className="text-muted-foreground">Сценарий: </span>
-        {chat.current_scenario ?? "нет"}
-      </span>
-      <span>
-        <span className="text-muted-foreground">Стек: </span>
-        {chat.scenario_stack.length ? chat.scenario_stack.join(" → ") : "стек пуст"}
-      </span>
       <span className="min-w-0 break-all">
         <span className="text-muted-foreground">Metadata: </span>
         {chat.metadata && Object.keys(chat.metadata).length ? JSON.stringify(chat.metadata) : "нет"}

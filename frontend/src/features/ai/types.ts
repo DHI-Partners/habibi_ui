@@ -13,24 +13,27 @@ export interface Bot {
 export interface ChatRef {
   id: number;
   bot_id: number;
-  current_scenario: string | null;
   title: string;
   preview: string;
 }
 
 // get_chat отдаёт строку customer_chats как есть (fields: "*"), а не то, что
-// удобно списку чатов: id, bot_id, current_scenario, scenario_stack,
-// metadata — и НЕ title/preview, которых в таблице нет вовсе, их считает
-// list_chats из сообщений. Раньше useChat обещал ChatRef без title/preview
-// через Omit и на этом останавливался, выбрасывая scenario_stack и metadata,
-// которые сервер уже присылает — ревью поймало именно эту недостачу. Отдельный
-// тип точнее Omit<ChatRef, ...>: он говорит, что здесь есть, а не только чего
-// нет.
+// удобно списку чатов: id, bot_id, metadata — и НЕ title/preview, которых в
+// таблице нет вовсе, их считает list_chats из сообщений. Раньше useChat
+// обещал ChatRef без title/preview через Omit и на этом останавливался,
+// выбрасывая metadata, которую сервер уже присылает — ревью поймало именно
+// эту недостачу. Отдельный тип точнее Omit<ChatRef, ...>: он говорит, что
+// здесь есть, а не только чего нет.
+//
+// current_scenario и scenario_stack тут раньше тоже были: колонки в
+// customer_chats остаются (get_chat их всё ещё присылает через fields: "*"),
+// но роутер намерений и стек сценариев из движка убраны — движок в них
+// больше не пишет ничего осмысленного, и эти два поля были бы вечно "нет" /
+// пустым списком. Типу нет смысла обещать то, что никогда не приходит с
+// содержанием (см. ChatPage.tsx, ConversationState).
 export interface ChatState {
   id: number;
   bot_id: number;
-  current_scenario: string | null;
-  scenario_stack: string[];
   metadata: Record<string, unknown> | null;
 }
 

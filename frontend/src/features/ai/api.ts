@@ -22,9 +22,9 @@ export function useChat(chatId: number | null) {
     queryKey: ["ai", "chat", chatId],
     // ChatState, а не Omit<ChatRef, "title" | "preview">: title и preview
     // здесь и правда не приходят (их считает list_chats из сообщений, в
-    // схеме под них колонки нет), но current_scenario, scenario_stack и
-    // metadata — приходят, сервер отдаёт строку customer_chats целиком
-    // (fields: "*"). Omit говорил только чего нет и терял то, что есть.
+    // схеме под них колонки нет), но metadata — приходит, сервер отдаёт
+    // строку customer_chats целиком (fields: "*"). Omit говорил только чего
+    // нет и терял то, что есть.
     queryFn: () =>
       call<{ chat: ChatState; messages: Message[] }>("habibi_ai.api.get_chat", {
         chat_id: chatId,
