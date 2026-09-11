@@ -73,8 +73,9 @@ export interface BotConfig {
 export interface SendResult {
   success: boolean;
   response: string;
-  scenario_key: string | null;
-  scenario_stack: string[];
-  /** Приходит только тем, у кого роль Habibi AI Debug. */
+  /**
+   * Трассировка всех витков цикла за этот ход, а не одного вызова модели.
+   * Приходит только обладателю роли Habibi AI Debug.
+   */
   debug?: TraceStep[];
 }

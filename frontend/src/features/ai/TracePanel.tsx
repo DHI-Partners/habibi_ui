@@ -4,11 +4,10 @@ import type { TraceStep } from "./types";
 
 const TITLES: Record<string, string> = {
   chat: "Состояние чата",
-  router: "Роутер намерений",
-  stack: "Стек сценариев",
-  scenario: "Сценарий",
+  tools: "Предложенные инструменты",
   completion: "Запрос в модель",
-  auto_return: "Автовозврат",
+  tool_use: "Вызов инструмента",
+  answer: "Ответ пользователю",
 };
 
 /**
