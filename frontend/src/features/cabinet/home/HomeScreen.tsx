@@ -12,7 +12,10 @@ export function HomeScreen() {
   const orders = useSectionList("orders", [["docstatus", "=", 0]]);
   const chats = useChatList();
   const telegram = useTelegram().query.data;
-  const today = new Date().toISOString().slice(0, 10);
+  // last_at — наивная локальная дата-время сайта, а не UTC: toISOString() тут
+  // сдвинул бы «сегодня» на UTC-сутки и после местной полуночи занижал бы счёт.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const todayChats = chats.data?.filter((c) => c.last_at.startsWith(today)) ?? [];
   const paused = chats.data?.filter((c) => c.paused) ?? [];
 

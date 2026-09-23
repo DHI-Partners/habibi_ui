@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { type Profile, useProfile } from "./api";
 
@@ -18,8 +18,17 @@ export function ProfileScreen() {
   const { query, mutation } = useProfile();
   const [p, setP] = useState<Profile | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  // Сеем форму только раз, при первой загрузке — иначе рефетч под открытой
+  // формой (staleTime по умолчанию 0, фокус окна, инвалидация из
+  // useRealtime) стирал бы то, что владелец уже успел напечатать. После
+  // сохранения форма обновляется явно, из ответа мутации, а не через этот
+  // эффект.
+  const seededRef = useRef(false);
   useEffect(() => {
-    if (query.data) setP(query.data);
+    if (query.data && !seededRef.current) {
+      setP(query.data);
+      seededRef.current = true;
+    }
   }, [query.data]);
   if (!p) return null;
 
@@ -83,7 +92,7 @@ export function ProfileScreen() {
       <button
         type="button"
         disabled={mutation.isPending}
-        onClick={() => mutation.mutate({ values: p })}
+        onClick={() => mutation.mutate({ values: p }, { onSuccess: (saved) => setP(saved) })}
         className="block rounded-lg bg-primary px-4 py-2 text-primary-foreground"
       >
         Сохранить
