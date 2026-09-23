@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Skeleton } from "../../shared/ui/skeleton";
@@ -9,16 +9,32 @@ import { FieldInput } from "./FieldInput";
 export const ACTIONS: Record<string, React.ComponentType<{ name: string }>> = {};
 
 export function GenericFormRoute() {
+  // react-router уже декодирует параметр пути (см. комментарий у
+  // NamedWorkspaceRoute в App.tsx) — повторный decodeURIComponent здесь не
+  // нужен и на именах с "%" (например «Скидка 20%») падал бы URIError без
+  // границы ошибок, унося в белый экран всё приложение.
   const { key = "", name } = useParams<{ key: string; name?: string }>();
   const navigate = useNavigate();
   const section = useCabinetConfig().data?.find((s) => s.key === key);
-  const doc = useSectionDoc(key, name ? decodeURIComponent(name) : null);
+  const doc = useSectionDoc(key, name ?? null);
   const save = useSaveSectionDoc(key);
   const [values, setValues] = useState<Record<string, unknown>>({});
 
+  // Какой документ (key:name) уже подставлен в форму. Без этой метки эффект
+  // ниже реагировал бы на каждое новое значение doc.data — а тот приходит и
+  // при обычном рефетче под открытой формой (staleTime по умолчанию 0,
+  // refetchOnWindowFocus, инвалидация из useRealtime), стирая то, что
+  // пользователь уже успел напечатать. Подставляем значения заново только
+  // когда открылся другой документ, а не когда старый перечитался с сервера.
+  const seededRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (doc.data) setValues(doc.data);
-  }, [doc.data]);
+    const identity = name ? `${key}:${name}` : null;
+    if (doc.data && seededRef.current !== identity) {
+      setValues(doc.data);
+      seededRef.current = identity;
+    }
+  }, [doc.data, key, name]);
 
   if (!section) return <p className="text-muted-foreground">Раздел недоступен</p>;
   if (name && doc.isPending) return <Skeleton className="h-60" />;
@@ -32,8 +48,18 @@ export function GenericFormRoute() {
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate(
-          { name: name ? decodeURIComponent(name) : null, values },
-          { onSuccess: (saved) => navigate(`/c/${key}/${encodeURIComponent(saved.name)}`, { replace: true }) },
+          { name: name ?? null, values },
+          {
+            onSuccess: (saved) => {
+              // Подставляем то, что реально сохранил сервер, сразу — не
+              // дожидаясь отдельного GET по новому имени, и помечаем
+              // документ уже засеянным, чтобы эффект выше не переиграл его
+              // тем же значением ещё раз.
+              seededRef.current = `${key}:${saved.name}`;
+              setValues(saved);
+              navigate(`/c/${key}/${encodeURIComponent(saved.name)}`, { replace: true });
+            },
+          },
         );
       }}
     >
@@ -54,7 +80,7 @@ export function GenericFormRoute() {
           Сохранить
         </button>
       )}
-      {Actions && name && <Actions name={decodeURIComponent(name)} />}
+      {Actions && name && <Actions name={name} />}
     </form>
   );
 }

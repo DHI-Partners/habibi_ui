@@ -56,7 +56,12 @@ export function CabinetShell() {
 
 export function CabinetIndex() {
   const config = useCabinetConfig();
-  if (!config.data?.length) return null;
+  // Пустой пресет — не ошибка загрузки (её уже показал бы CabinetShell), а
+  // конфигурация без разделов: молчаливый null оставлял бы пустой экран без
+  // объяснения, почему кабинет открылся, а показать в нём нечего.
+  if (!config.data?.length) {
+    return <p className="text-muted-foreground">Разделы кабинета не настроены — обратитесь к администратору</p>;
+  }
   return <Navigate to={`/c/${config.data[0].key}`} replace />;
 }
 
