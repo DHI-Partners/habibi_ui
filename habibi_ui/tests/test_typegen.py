@@ -14,3 +14,9 @@ class TestTypegen(IntegrationTestCase):
 
 	def test_output_is_marked_as_generated(self):
 		self.assertTrue(render_types().startswith("// Файл сгенерирован"))
+
+	def test_типы_кабинета_экспортируются(self):
+		out = render_types()
+		self.assertIn("export interface CabinetSection {", out)
+		self.assertIn("  form_fields: CabinetField[];", out)
+		self.assertIn("  home: string;", out)

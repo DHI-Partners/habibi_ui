@@ -14,13 +14,17 @@ website_route_rules = [
 ]
 
 # Роль-переключатель приезжает фикстурой: без неё role_home_page ниже ссылается
-# на несуществующую роль, и включить интерфейс нечем.
+# на несуществующую роль, и включить интерфейс нечем. Habibi Owner и Habibi
+# Staff — роли кабинета: их обладатель без System Manager попадает в кабинет,
+# а не в лаунчер (см. _home() в api/v1/session.py).
 fixtures = [
-	{"dt": "Role", "filters": [["name", "in", ["Habibi UI"]]]},
+	{"dt": "Role", "filters": [["name", "in", ["Habibi UI", "Habibi Owner", "Habibi Staff"]]]},
 ]
 
 # Кому выдана роль — тот при входе попадает в новый интерфейс, остальные в Desk.
 # Включение и откат делаются выдачей и снятием роли, без выкатки.
 role_home_page = {
 	"Habibi UI": "ui",
+	"Habibi Owner": "ui",
+	"Habibi Staff": "ui",
 }

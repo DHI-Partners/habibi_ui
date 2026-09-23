@@ -50,6 +50,18 @@ class TestSessionMe(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			me()
 
+	def test_владелец_попадает_в_кабинет(self):
+		with patch("habibi_ui.api.v1.session.frappe.get_roles", return_value=["Habibi Owner"]):
+			self.assertEqual(me()["home"], "cabinet")
+
+	def test_администратор_попадает_в_лаунчер(self):
+		# System Manager с ролью владельца — всё равно лаунчер: ему нужна «кухня»,
+		# а кабинет открывается руками по /ui/c.
+		with patch(
+			"habibi_ui.api.v1.session.frappe.get_roles", return_value=["Habibi Owner", "System Manager"]
+		):
+			self.assertEqual(me()["home"], "launcher")
+
 
 class TestSessionBoot(IntegrationTestCase):
 	def test_отдаёт_тот_же_состав_что_страница_обёртка(self):

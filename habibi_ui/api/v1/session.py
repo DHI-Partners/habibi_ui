@@ -6,6 +6,8 @@ import frappe
 import frappe.sessions
 from frappe import _
 
+from habibi_ui.api.v1.cabinet import CABINET_ROLES
+
 # Заголовки модулей задаются здесь, а не берутся из app_title: в интерфейсе
 # они видны пользователю и переводятся отдельно от технических имён приложений.
 MODULE_LABELS = {
@@ -28,6 +30,7 @@ class Me:
 	full_name: str
 	roles: list[str]
 	modules: list[Module]
+	home: str
 
 
 def _modules() -> list[Module]:
@@ -35,17 +38,31 @@ def _modules() -> list[Module]:
 	return [Module(key=app, label=MODULE_LABELS[app]) for app in installed if app in MODULE_LABELS]
 
 
+def _home(roles) -> str:
+	"""Кабинет — для ролей кабинета без System Manager.
+
+	Решает сервер: фронт только перенаправляет. Администратор с ролью
+	владельца остаётся в лаунчере — ему нужна вся система, кабинет он
+	откроет по /ui/c.
+	"""
+	if "System Manager" in roles:
+		return "launcher"
+	return "cabinet" if set(CABINET_ROLES) & set(roles) else "launcher"
+
+
 @frappe.whitelist()
 def me() -> dict:
 	if frappe.session.user == "Guest":
 		frappe.throw(_("Требуется вход"), frappe.PermissionError)
 
+	roles = frappe.get_roles()
 	return asdict(
 		Me(
 			user=frappe.session.user,
 			full_name=frappe.utils.get_fullname(frappe.session.user),
-			roles=frappe.get_roles(),
+			roles=roles,
 			modules=_modules(),
+			home=_home(roles),
 		)
 	)
 

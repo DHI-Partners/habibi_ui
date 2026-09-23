@@ -11,6 +11,7 @@ export interface Me {
   full_name: string;
   roles: string[];
   modules: Module[];
+  home: string;
 }
 
 export interface WorkspaceRef {
@@ -78,4 +79,27 @@ export interface WorkspacePage {
   label: string;
   shortcuts: Shortcut[];
   cards: Card[];
+}
+
+export interface CabinetField {
+  fieldname: string;
+  label: string;
+  fieldtype: string;
+  options: string;
+  reqd: boolean;
+  read_only: boolean;
+}
+
+export interface CabinetSection {
+  key: string;
+  label: string;
+  icon: string;
+  kind: string;
+  screen: string;
+  doctype: string;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  list_fields: CabinetField[];
+  form_fields: CabinetField[];
 }
