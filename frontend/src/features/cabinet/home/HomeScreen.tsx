@@ -1,15 +1,16 @@
-import { ChevronRight, MessageCircle, Send, ShoppingBag } from "lucide-react";
+import { ChevronRight, MessageCircle, RotateCw, Send, ShoppingBag } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { cn } from "../../../shared/lib/utils";
+import { Button } from "../../../shared/ui/button";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { useCabinetConfig, useSectionList } from "../api";
 import { useChatList } from "../chats/api";
 import { dateLabel, fulfilmentLabel, listStamp, money, plural, shortNo } from "../format";
 import { useHours, useProfile, useTelegramStatus } from "../settings/api";
 import { openStatus } from "../settings/hours";
-import { InitialAvatar, SectionTitle, StatusBadge, surface, WarningNote } from "../ui";
+import { ErrorNote, InitialAvatar, SectionTitle, StatusBadge, surface, WarningNote } from "../ui";
 
 const RECENT = 5;
 
@@ -76,7 +77,7 @@ export function HomeScreen() {
           {has("orders") && (
             <Stat
               to="/c/orders"
-              value={orders.data ? newOrders.length : undefined}
+              value={orders.error ? null : orders.data ? newOrders.length : undefined}
               label={plural(newOrders.length, ["новый заказ", "новых заказа", "новых заказов"])}
               accent="primary"
             />
@@ -85,12 +86,12 @@ export function HomeScreen() {
             <>
               <Stat
                 to="/c/chats"
-                value={chats.data ? todayChats.length : undefined}
+                value={chats.error ? null : chats.data ? todayChats.length : undefined}
                 label={`${plural(todayChats.length, ["переписка", "переписки", "переписок"])} сегодня`}
               />
               <Stat
                 to="/c/chats"
-                value={chats.data ? paused.length : undefined}
+                value={chats.error ? null : chats.data ? paused.length : undefined}
                 label={plural(paused.length, ["ждёт человека", "ждут человека", "ждут человека"])}
                 accent={paused.length ? "warning" : undefined}
               />
@@ -102,7 +103,9 @@ export function HomeScreen() {
           {has("orders") && (
             <section className="min-w-0 space-y-2">
               <SectionTitle action={<AllLink to="/c/orders" />}>Новые заказы</SectionTitle>
-              {orders.isPending ? (
+              {orders.error ? (
+                <BlockError what="заказы" message={orders.error.message} onRetry={() => void orders.refetch()} />
+              ) : orders.isPending ? (
                 <RowsSkeleton />
               ) : newOrders.length === 0 ? (
                 <Quiet icon={<ShoppingBag className="size-4" />}>Новых заказов нет</Quiet>
@@ -136,7 +139,9 @@ export function HomeScreen() {
           {has("chats") && (
             <section className="min-w-0 space-y-2">
               <SectionTitle action={<AllLink to="/c/chats" />}>Переписки</SectionTitle>
-              {chats.isPending ? (
+              {chats.error ? (
+                <BlockError what="переписки" message={chats.error.message} onRetry={() => void chats.refetch()} />
+              ) : chats.isPending ? (
                 <RowsSkeleton />
               ) : !chats.data?.length ? (
                 <Quiet icon={<MessageCircle className="size-4" />}>Переписок пока нет</Quiet>
@@ -178,13 +183,16 @@ export function HomeScreen() {
 
 function AllLink({ to }: { to: string }) {
   return (
-    <Link to={to} className="text-sm font-medium text-primary hover:underline">
+    // Высота 44px — палец на телефоне; -my гасит её в строке заголовка.
+    <Link to={to} className="-my-2 -mr-2 flex min-h-11 items-center px-2 text-sm font-medium text-primary hover:underline">
       Все
     </Link>
   );
 }
 
-function Stat(props: { to: string; value: number | undefined; label: string; accent?: "primary" | "warning" }) {
+// value: число; undefined — ещё грузится; null — не загрузилось (прочерк, а не
+// вечный скелетон и не ложный ноль).
+function Stat(props: { to: string; value: number | null | undefined; label: string; accent?: "primary" | "warning" }) {
   const warning = props.accent === "warning";
   return (
     <Link
@@ -206,13 +214,27 @@ function Stat(props: { to: string; value: number | undefined; label: string; acc
             warning && "text-amber-800 dark:text-amber-300",
           )}
         >
-          {props.value}
+          {props.value ?? "—"}
         </span>
       )}
       <span className={cn("text-xs leading-snug text-muted-foreground", warning && "text-amber-800 dark:text-amber-300")}>
         {props.label}
       </span>
     </Link>
+  );
+}
+
+// Не загрузилось — так и говорим: «Новых заказов нет» на месте ошибки
+// владелец принял бы за правду.
+function BlockError({ what, message, onRetry }: { what: string; message: string; onRetry: () => void }) {
+  return (
+    <ErrorNote title={`Не удалось загрузить ${what}`}>
+      <span className="block">{message}</span>
+      <Button variant="outline" size="sm" className="mt-2 h-9" onClick={onRetry}>
+        <RotateCw />
+        Повторить
+      </Button>
+    </ErrorNote>
   );
 }
 

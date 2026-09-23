@@ -91,6 +91,19 @@ export function ChatsScreen({ section }: { section: CabinetSection }) {
         </div>
       </aside>
 
+      {active && chats.isPending && (
+        // Открыли чат по ссылке, список ещё грузится: на телефоне панель списка
+        // скрыта, и без скелетона был бы пустой экран.
+        <div className="flex flex-1 flex-col md:hidden">
+          <div className="flex min-h-14 items-center gap-2.5 border-b px-3">
+            <Skeleton className="size-9 rounded-full" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex-1 p-4">
+            <BubblesSkeleton />
+          </div>
+        </div>
+      )}
       {current ? (
         <Thread chat={current} onBack={() => setParams({})} />
       ) : (
@@ -160,13 +173,12 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
           <div className="truncate text-[15px] font-semibold">{chat.title}</div>
           <div
             className={cn(
-              // Без обрезки: «бот на паузе» — главное в этой строке, пусть лучше перенесётся.
-              "flex items-center gap-1.5 text-xs leading-tight",
+              "flex items-center gap-1.5 truncate text-xs",
               chat.paused ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-400",
             )}
           >
             <span className={cn("size-1.5 shrink-0 rounded-full", chat.paused ? "bg-amber-500" : "bg-emerald-500")} />
-            {chat.paused ? "Отвечаете вы, бот на паузе" : "Отвечает бот"}
+            {chat.paused ? "Бот на паузе" : "Отвечает бот"}
           </div>
         </div>
         {chat.paused ? (

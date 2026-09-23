@@ -111,7 +111,11 @@ export function HoursScreen({ section }: { section: CabinetSection }) {
 
   const workErrors = work.map(dayError);
   const deliveryErrors = delivery.map(dayError);
-  const invalid = workErrors.some(Boolean) || (ownDelivery && deliveryErrors.some(Boolean));
+  // «Свои часы» без единого дня доставки сохранились бы без интервалов
+  // «Доставка» — а это на сервере значит «доставка в часы работы», ровно
+  // обратное тому, что имел в виду владелец. Не даём сохранить.
+  const noDeliveryDays = ownDelivery && delivery.every((d) => d.length === 0);
+  const invalid = workErrors.some(Boolean) || (ownDelivery && deliveryErrors.some(Boolean)) || noDeliveryDays;
   // date — обязательное поле Working Hours Exception: пустая строка на
   // сервере провалит save() с малопонятной ошибкой. Лучше не дать сохранить
   // вовсе, чем молча выбросить недописанную строку владельца.
@@ -232,6 +236,11 @@ export function HoursScreen({ section }: { section: CabinetSection }) {
           {ownDelivery ? (
             <>
               <WeekEditor week={delivery} errors={deliveryErrors} onChange={setDelivery} closedLabel="без доставки" />
+              {noDeliveryDays && (
+                <ErrorNote title="Нет ни одного дня доставки">
+                  Если доставки нет — отключите её в настройках у администратора, или выберите «В часы работы».
+                </ErrorNote>
+              )}
               <p className="text-[13px] text-muted-foreground">
                 Бот назовёт эти часы, когда спросят про доставку. В дни без доставки — только самовывоз.
               </p>
@@ -363,13 +372,13 @@ function WeekEditor(props: {
                             variant="ghost"
                             size="icon"
                             aria-label="Убрать интервал"
-                            className="text-muted-foreground"
+                            className="size-11 text-muted-foreground md:size-9"
                             onClick={() => setDay(day, intervals.filter((x) => x._id !== iv._id))}
                           >
                             <X />
                           </Button>
                         ) : (
-                          <span className="size-8" aria-hidden />
+                          <span className="size-11 md:size-9" aria-hidden />
                         ))}
                     </div>
                   ))
@@ -397,7 +406,7 @@ function TimeInput(props: { value: string; label: string; invalid?: boolean; onC
       aria-invalid={props.invalid || undefined}
       onChange={(e) => props.onChange(maskTime(e.target.value))}
       onBlur={(e) => props.onChange(normalizeTime(e.target.value))}
-      className="h-9 w-16 px-1 text-center text-sm tabular-nums"
+      className="h-11 w-[4.25rem] px-1 text-center text-[15px] tabular-nums md:h-9 md:w-16 md:text-sm"
     />
   );
 }
@@ -466,6 +475,8 @@ function ExceptionDialog(props: {
               selected={selected}
               defaultMonth={selected}
               onSelect={(day) => day && setDraft({ ...d, date: iso(day) })}
+              // Прошедший день бот уже не назовёт — выбирать его незачем.
+              disabled={{ before: new Date(new Date().setHours(0, 0, 0, 0)) }}
               className="[--cell-size:--spacing(9)]"
             />
           </div>
@@ -497,6 +508,8 @@ function ExceptionDialog(props: {
             </div>
           )}
           {duplicate && <p className="text-xs text-destructive">На эту дату особый день уже есть</p>}
+          {!d.date && <p className="text-xs text-muted-foreground">Выберите дату в календаре</p>}
+          {d.date && timesBad && <p className="text-xs text-muted-foreground">Укажите часы в формате ЧЧ:ММ</p>}
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" className="h-11 md:h-9" onClick={props.onClose}>
               Отмена
