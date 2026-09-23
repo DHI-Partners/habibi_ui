@@ -15,6 +15,21 @@ import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface } from 
 
 const NUMERIC = new Set(["Currency", "Float", "Int"]);
 
+// Не тип Frappe: так адаптер (например @order_status в habibi_ai) помечает
+// человеческий статус документа — он рисуется бейджем, как workflow_state.
+const STATUS = "Status";
+
+/**
+ * Есть человеческий статус — docstatus («Черновик/Проведён») колонкой не нужен:
+ * это тот же статус в техническом виде. В list_fields он остаётся — по нему
+ * фильтрует главная («новые» = docstatus 0), а фильтр принимается только по
+ * полям раздела.
+ */
+function withoutRawStatus(section: CabinetSection): CabinetSection {
+  if (!section.list_fields.some((f) => f.fieldtype === STATUS)) return section;
+  return { ...section, list_fields: section.list_fields.filter((f) => f.fieldname !== "docstatus") };
+}
+
 /** Значение ячейки: статусы Frappe — бейджем, числа — с разрядами, флаг — бейджем с подписью. */
 function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
   const value = row[field.fieldname];
@@ -22,7 +37,7 @@ function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
     const [label, tone] = docstatusBadge(value);
     return <StatusBadge tone={tone}>{label}</StatusBadge>;
   }
-  if (field.fieldname === "workflow_state") {
+  if (field.fieldname === "workflow_state" || field.fieldtype === STATUS) {
     if (!value) return null;
     const [label, tone] = stateBadge(String(value));
     return <StatusBadge tone={tone}>{label}</StatusBadge>;
@@ -33,9 +48,11 @@ function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
   return formatValue(field, value);
 }
 
-const isBadge = (f: CabinetField) => f.fieldname === "docstatus" || f.fieldname === "workflow_state" || f.fieldtype === "Check";
+const isBadge = (f: CabinetField) =>
+  f.fieldname === "docstatus" || f.fieldname === "workflow_state" || f.fieldtype === STATUS || f.fieldtype === "Check";
 
-export function GenericList({ section }: { section: CabinetSection }) {
+export function GenericList({ section: raw }: { section: CabinetSection }) {
+  const section = withoutRawStatus(raw);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const back = useSectionBack(section.key);

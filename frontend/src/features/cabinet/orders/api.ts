@@ -8,6 +8,39 @@ export type OrderAction = { action: string; kind: "accept" | "reject" | "other" 
 // уведомления хранит только вид и текст.
 export type Notify = { kind: "accept" | "reject"; text: string };
 
+export type StateKind = "new" | "accepted" | "rejected" | "other";
+
+// Контракт habibi_ai.cabinet.orders.details: всё, что рисует экран заказа.
+// Необязательные поля (custom_* сайта, адрес, чат) приходят null, если их нет.
+export type OrderDetails = {
+  name: string;
+  number: string;
+  created: string;
+  source: string | null;
+  state: string;
+  state_kind: StateKind;
+  customer_name: string | null;
+  phone: string | null;
+  fulfilment: string | null;
+  zone: string | null;
+  address: string | null;
+  notes: string | null;
+  items: { item_name: string; qty: number; rate: number; amount: number }[];
+  delivery: { label: string; amount: number } | null;
+  total: number;
+  taxes: number;
+  currency: string;
+  currency_symbol: string;
+  chat: string | null;
+};
+
+export function useOrderDetails(name: string) {
+  return useQuery({
+    queryKey: ["cabinet", "order-details", name],
+    queryFn: () => call<OrderDetails>("habibi_ai.cabinet.orders.details", { name }),
+  });
+}
+
 export function useOrderActions(name: string) {
   return useQuery({
     queryKey: ["cabinet", "order-actions", name],
@@ -32,6 +65,7 @@ export function useApplyAction(name: string) {
     onSuccess: (_result, { action }) => {
       if (action !== DISCARD_ACTION) {
         void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-actions", name] });
+        void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-details", name] });
       }
       void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
     },

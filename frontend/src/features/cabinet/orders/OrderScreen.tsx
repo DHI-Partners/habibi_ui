@@ -1,4 +1,4 @@
-import { Loader2, MessageSquareText, Store, Trash2, Truck } from "lucide-react";
+import { Loader2, MessageCircle, MessageSquareText, Store, Trash2, Truck } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,11 +8,19 @@ import type { CabinetSection } from "../../../shared/types/api";
 import { Button, buttonVariants } from "../../../shared/ui/button";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { Textarea } from "../../../shared/ui/textarea";
-import { useSectionDoc } from "../api";
-import { formatValue } from "../FieldInput";
-import { fulfilmentLabel, money, shortNo, stateBadge } from "../format";
-import { EmptyState, ErrorNote, InitialAvatar, Page, ResponsiveModal, StatusBadge, surface } from "../ui";
-import { DISCARD_ACTION, type Notify, type OrderAction, useApplyAction, useNotify, useOrderActions } from "./api";
+import { clock, dateLabel, fulfilmentLabel, money, parseSiteDate, stateBadge, type Tone } from "../format";
+import { EmptyState, ErrorNote, InitialAvatar, Page, ResponsiveModal, StatusBadge, surface, WarningNote } from "../ui";
+import {
+  DISCARD_ACTION,
+  type Notify,
+  type OrderAction,
+  type OrderDetails,
+  type StateKind,
+  useApplyAction,
+  useNotify,
+  useOrderActions,
+  useOrderDetails,
+} from "./api";
 
 const LABELS: Record<string, string> = { accept: "Принять", reject: "Отклонить" };
 
@@ -20,18 +28,14 @@ const LABELS: Record<string, string> = { accept: "Принять", reject: "От
 // (order_rejected, переменная reason). Своя причина — полем ниже.
 const REASONS = ["Закончилась позиция", "Не возим в этот район", "Скоро закрываемся", "Слишком большая загрузка"];
 
-// Поля заказа, которые экран раскладывает по своим местам (карточка клиента,
-// блок получения, итог). Остальные поля раздела — строками «подпись — значение»,
-// чтобы пресет мог добавить своё и оно не потерялось.
-const PLACED = new Set([
-  "name",
-  "customer_name",
-  "custom_whatsapp_number",
-  "custom_fulfilment_type",
-  "custom_delivery_zone",
-  "custom_kitchen_notes",
-  "grand_total",
-]);
+// Цвет бейджа — по смыслу состояния (state_kind с сервера), а не по его имени:
+// имена состояний у воркфлоу каждого сайта свои. Подпись — перевод известных
+// имён (stateBadge), незнакомое имя показывается как есть.
+const KIND_TONE: Record<StateKind, Tone> = { new: "new", accepted: "ok", rejected: "bad", other: "progress" };
+const KIND_LABEL: Record<StateKind, string> = { new: "Новый", accepted: "Принят", rejected: "Отклонён", other: "" };
+
+// Переписки — раздел chats из пресета; открытый чат ChatsScreen берёт из ?chat=.
+const chatHref = (chat: string) => `/c/chats?chat=${encodeURIComponent(chat)}`;
 
 type Step =
   | { kind: "confirm-reject"; action: OrderAction }
@@ -39,39 +43,38 @@ type Step =
   | null;
 
 export function OrderScreen({ section, name }: { section: CabinetSection; name: string }) {
-  const doc = useSectionDoc(section.key, name);
+  const details = useOrderDetails(name);
   const actions = useOrderActions(name);
   const apply = useApplyAction(name);
   const notify = useNotify(name);
   const [step, setStep] = useState<Step>(null);
   const [reason, setReason] = useState("");
   // discard (см. DISCARD_ACTION в api.ts) удаляет черновик заказа на сервере —
-  // документа больше нет, а order-actions(name) больше не перечитывается (api.ts
-  // не инвалидирует её после discard). discarded — единственный явный сигнал
-  // «заказа больше нет»: TanStack Query после ошибки рефетча оставляет старые
-  // actions.data нетронутыми (isRefetchError сохраняет data), так что сами кнопки
-  // остались бы кликабельными и рабочими — их нужно прятать явным флагом, а не
-  // выводить из actions.isError/actions.data.
+  // документа больше нет, а order-actions/order-details(name) больше не
+  // перечитываются (api.ts не инвалидирует их после discard). discarded —
+  // единственный явный сигнал «заказа больше нет»: TanStack Query после ошибки
+  // рефетча оставляет старые data нетронутыми (isRefetchError сохраняет data),
+  // так что сами кнопки остались бы кликабельными и рабочими — их нужно прятать
+  // явным флагом, а не выводить из actions.isError/actions.data.
   const [discarded, setDiscarded] = useState(false);
 
   const back = `/c/${section.key}`;
-  const data = doc.data;
-  const fields = new Map(section.form_fields.map((f) => [f.fieldname, f]));
-  const val = (fieldname: string) => (fields.has(fieldname) && data ? data[fieldname] : undefined);
-  const customer = String(val("customer_name") ?? "");
-  const phone = String(val("custom_whatsapp_number") ?? "");
-  const fulfilment = fulfilmentLabel(val("custom_fulfilment_type"));
-  const zone = String(val("custom_delivery_zone") ?? "");
-  const notes = String(val("custom_kitchen_notes") ?? "");
-  const total = val("grand_total");
-  const extra = section.form_fields.filter((f) => !PLACED.has(f.fieldname));
+  const data = details.data;
+  const customer = data?.customer_name ?? "";
 
-  const state = discarded ? "Отклонён" : actions.data?.state;
-  const [stateLabel, tone] = stateBadge(state);
+  const [stateLabel, tone]: [string, Tone] = discarded
+    ? ["Отклонён", "bad"]
+    : data
+      ? [stateBadge(data.state)[0] || KIND_LABEL[data.state_kind], KIND_TONE[data.state_kind]]
+      : ["", "neutral"];
   // Как в макете: «Отклонить» слева, «Принять» справа, прочие переходы — между.
   const ORDER = { reject: 0, other: 1, accept: 2 };
   const available = !discarded ? [...(actions.data?.actions ?? [])].sort((a, b) => ORDER[a.kind] - ORDER[b.kind]) : [];
   const canNotify = actions.data?.can_notify ?? false;
+  // Новый заказ, а принять нельзя: переходы воркфлоу разрешены своим ролям
+  // (на проде — Burger Order Desk), и без такой роли сервер их не отдаёт.
+  const noRights =
+    !discarded && data?.state_kind === "new" && actions.data !== undefined && !available.some((a) => a.kind === "accept");
 
   const run = (action: OrderAction, why = "") =>
     apply.mutate(
@@ -102,15 +105,15 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
     }
   };
 
-  const title = `Заказ ${shortNo(name)}`;
+  const title = data ? `Заказ №${data.number}` : "Заказ";
   const badge = stateLabel && <StatusBadge tone={tone}>{stateLabel}</StatusBadge>;
 
-  if (doc.isPending && !discarded) {
+  if (details.isPending && !discarded) {
     return (
       <Page title={title} back={back} width="narrow">
         <div className="space-y-3">
           <Skeleton className="h-32 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-40 rounded-xl" />
         </div>
       </Page>
     );
@@ -122,11 +125,19 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
         {discarded ? (
           <EmptyState icon={Trash2} text="Заказ отклонён и удалён" action={<BackLink to={back} />} />
         ) : (
-          <ErrorNote title="Не удалось открыть заказ">{doc.error?.message}</ErrorNote>
+          <ErrorNote title="Не удалось открыть заказ">{details.error?.message}</ErrorNote>
         )}
       </Page>
     );
   }
+
+  const created = parseSiteDate(data.created);
+  const subtitle = [
+    created ? `${dateLabel(data.created)}, ${clock(created)}` : "",
+    data.source ? `из ${data.source}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const footer = available.length > 0 && (
     <div className={cn("grid gap-2 md:flex", available.length > 1 && "grid-cols-2")}>
@@ -149,14 +160,7 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
   );
 
   return (
-    <Page
-      title={title}
-      subtitle={[name !== shortNo(name) ? name : "", canNotify ? "из Telegram" : ""].filter(Boolean).join(" · ")}
-      back={back}
-      actions={badge}
-      footer={footer}
-      width="narrow"
-    >
+    <Page title={title} subtitle={subtitle} back={back} actions={badge} footer={footer} width="narrow">
       <div className="space-y-3">
         {discarded && (
           <div className={cn(surface, "flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground")}>
@@ -168,60 +172,10 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
         {actions.isError && !actions.data && !discarded && (
           <ErrorNote title="Действия с заказом недоступны">{actions.error.message}</ErrorNote>
         )}
+        {noRights && <WarningNote>Нет прав на действия с заказом — обратитесь к администратору</WarningNote>}
 
-        {(customer || phone || fulfilment || notes) && (
-          <section className={cn(surface, "space-y-3 p-4")}>
-            {(customer || phone) && (
-              <div className="flex items-center gap-3">
-                <InitialAvatar name={customer || phone} size="lg" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[15px] font-semibold">{customer || "Клиент"}</div>
-                  {phone && (
-                    <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="text-[13px] text-muted-foreground hover:underline">
-                      {phone}
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-            {(fulfilment || notes) && (
-              <div className="flex items-start gap-2.5 rounded-lg bg-muted px-3 py-2.5">
-                {fields.get("custom_fulfilment_type") && val("custom_fulfilment_type") === "Pickup" ? (
-                  <Store className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                ) : fulfilment ? (
-                  <Truck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <MessageSquareText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                )}
-                <div className="min-w-0 space-y-0.5">
-                  {fulfilment && (
-                    <div className="text-sm font-medium">
-                      {fulfilment}
-                      {zone && ` · зона «${zone}»`}
-                    </div>
-                  )}
-                  {notes && <div className="text-[13px] break-words text-muted-foreground">«{notes}»</div>}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {(extra.length > 0 || total !== undefined) && (
-          <section className={cn(surface, "divide-y")}>
-            {extra.map((f) => (
-              <Line key={f.fieldname} label={f.label}>
-                {formatValue(f, data[f.fieldname]) || "—"}
-              </Line>
-            ))}
-            {total !== undefined && (
-              <div className="flex items-baseline gap-3 px-4 py-3.5">
-                <span className="flex-1 text-[15px] font-semibold">Итого</span>
-                <span className="text-lg font-bold tabular-nums">{money(total)}</span>
-              </div>
-            )}
-          </section>
-        )}
+        <CustomerCard data={data} />
+        <Lines data={data} />
       </div>
 
       <StepSheet
@@ -254,12 +208,83 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
   );
 }
 
-function Line({ label, children }: { label: string; children: ReactNode }) {
+/** Карточка клиента по макету: аватар, имя, телефон, «Переписка»; ниже — получение. */
+function CustomerCard({ data }: { data: OrderDetails }) {
+  const customer = data.customer_name ?? "";
+  const phone = data.phone ?? "";
+  const fulfilment = fulfilmentLabel(data.fulfilment);
+  // Вторая строка блока получения: адрес и пожелание клиента — как в макете
+  // «Абая 150, кв 12 · «без лука»».
+  const detail = [data.address?.replace(/<br\s*\/?>/gi, ", ").replace(/<[^>]*>/g, "").trim(), data.notes && `«${data.notes}»`]
+    .filter(Boolean)
+    .join(" · ");
+  if (!customer && !phone && !fulfilment && !detail && !data.chat) return null;
+  const Icon = data.fulfilment === "Pickup" ? Store : fulfilment ? Truck : MessageSquareText;
+
   return (
-    <div className="flex gap-3 px-4 py-3 text-sm">
-      <span className="flex-1 text-muted-foreground">{label}</span>
-      <span className="text-right break-words">{children}</span>
-    </div>
+    <section className={cn(surface, "space-y-3 p-4")}>
+      <div className="flex items-center gap-3">
+        <InitialAvatar name={customer || phone} size="lg" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[15px] font-semibold">{customer || "Клиент"}</div>
+          {phone && (
+            <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="text-[13px] text-muted-foreground hover:underline">
+              {phone}
+            </a>
+          )}
+        </div>
+        {data.chat && (
+          <Link to={chatHref(data.chat)} className={cn(buttonVariants({ variant: "outline" }), "h-9 shrink-0 gap-1.5 px-3 text-[13px]")}>
+            <MessageCircle className="size-4" />
+            Переписка
+          </Link>
+        )}
+      </div>
+      {(fulfilment || detail) && (
+        <div className="flex items-start gap-2.5 rounded-lg bg-muted px-3 py-2.5">
+          <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 space-y-0.5">
+            {fulfilment && (
+              <div className="text-sm font-medium">
+                {fulfilment}
+                {data.zone && ` · зона «${data.zone}»`}
+              </div>
+            )}
+            {detail && <div className="text-[13px] break-words text-muted-foreground">{detail}</div>}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Состав: позиции × количество, доставка отдельной строкой, «Итого» крупно. */
+function Lines({ data }: { data: OrderDetails }) {
+  // Символ — валюты самого заказа (у бизнеса она бывает не той, что у компании
+  // по умолчанию); разряды — ru-RU, как во всём кабинете.
+  const sum = (value: number) => `${money(value)} ${data.currency_symbol}`;
+  return (
+    <section className={cn(surface, "divide-y")}>
+      {data.items.map((item, i) => (
+        <div key={i} className="flex items-baseline gap-3 px-4 py-3.5 text-sm">
+          <span className="min-w-0 flex-1 break-words">{item.item_name}</span>
+          <span className="shrink-0 text-muted-foreground tabular-nums">× {money(item.qty)}</span>
+          <span className="w-24 shrink-0 text-right tabular-nums">{sum(item.amount)}</span>
+        </div>
+      ))}
+      {data.delivery && (
+        <div className="flex items-baseline gap-3 px-4 py-3.5 text-sm">
+          <span className="min-w-0 flex-1 break-words text-muted-foreground">{data.delivery.label}</span>
+          <span className="w-24 shrink-0 text-right tabular-nums">
+            {data.delivery.amount ? sum(data.delivery.amount) : "бесплатно"}
+          </span>
+        </div>
+      )}
+      <div className="flex items-baseline gap-3 px-4 py-3.5">
+        <span className="flex-1 text-[15px] font-semibold">Итого</span>
+        <span className="text-lg font-bold tabular-nums">{sum(data.total)}</span>
+      </div>
+    </section>
   );
 }
 

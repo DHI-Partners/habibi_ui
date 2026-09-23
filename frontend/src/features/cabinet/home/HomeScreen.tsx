@@ -128,7 +128,10 @@ export function HomeScreen() {
                             .join(" · ")}
                         </div>
                       </div>
-                      <span className="text-[15px] font-semibold tabular-nums">{money(row.grand_total)}</span>
+                      {/* order_total — сумма с символом валюты (адаптер пресета); в старом разделе её нет */}
+                      <span className="text-[15px] font-semibold tabular-nums">
+                        {row.order_total ? String(row.order_total) : money(row.grand_total)}
+                      </span>
                     </Link>
                   ))}
                 </div>
