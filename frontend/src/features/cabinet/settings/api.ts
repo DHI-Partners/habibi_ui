@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "../../../shared/api/client";
 
 export type Slot = { weekday: string; kind: string; opens: string; closes: string };
-export type Exception = { date: string; closed: 0 | 1; opens: string; closes: string; note: string };
+// get_hours отдаёт closed как bool, а в save_hours уходит 0/1 (Check) —
+// читать только как истинность: Boolean(closed), а не closed === 1.
+export type Exception = { date: string; closed: boolean | 0 | 1; opens: string; closes: string; note: string };
 export type Hours = { time_zone: string; schedule: Slot[]; exceptions: Exception[] };
 export type Rule = { title: string; hint: string; text: string };
 export type Profile = {

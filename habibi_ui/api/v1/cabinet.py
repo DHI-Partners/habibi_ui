@@ -215,6 +215,11 @@ def save(section, values, name=None):
 	row, s = _section(section)
 	specs = parse_fields(row.form_fields)
 	plain, adapters = split_values(frappe.parse_json(values), specs)
+	# Поле только для чтения форма показывает, но не отправляет — а прямой
+	# вызов API прислать может. Пишет его сам DocType (fetch_from, расчёт),
+	# не пользователь. Адаптеры режет a.editable() ниже.
+	read_only = {f.fieldname for f in s.form_fields if f.read_only}
+	plain = {k: v for k, v in plain.items() if k not in read_only}
 	if name:
 		if not s.can_edit:
 			frappe.throw(_("Изменение в этом разделе запрещено"), frappe.PermissionError)

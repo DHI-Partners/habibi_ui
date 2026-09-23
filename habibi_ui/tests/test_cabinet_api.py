@@ -74,6 +74,38 @@ class TestCabinetApi(IntegrationTestCase):
 		self.assertEqual(doc.priority, "High")
 		self.assertFalse(doc.allocated_to)
 
+	def test_save_не_пишет_поле_только_для_чтения(self):
+		"""read_only поля форма не отправляет, но прямой вызов API может —
+		save() его отбрасывает. Property Setter, а не Custom Field: DDL
+		закоммитил бы транзакцию, и откат в tearDown не сработал бы."""
+		frappe.make_property_setter(
+			{"doctype": "ToDo", "fieldname": "priority", "property": "read_only", "value": "1", "property_type": "Check"}
+		)
+		frappe.clear_cache(doctype="ToDo")
+		self.addCleanup(frappe.clear_cache, doctype="ToDo")
+		result = cabinet.save("todo", {"description": "новое", "priority": "High"})
+		doc = frappe.get_doc("ToDo", result["name"])
+		self.assertEqual(doc.description, "новое")
+		self.assertNotEqual(doc.priority, "High")
+		cabinet.save("todo", {"description": "правка", "priority": "High"}, name=doc.name)
+		doc.reload()
+		self.assertEqual(doc.description, "правка")
+		self.assertNotEqual(doc.priority, "High")
+
+	def test_save_не_пишет_нередактируемый_адаптер(self):
+		"""Адаптер с editable() == False (статус, сумма заказа) не пишется —
+		write у них вообще бросает PermissionError."""
+		adapter = type("A", (), {})()
+		adapter.doctype, adapter.label, adapter.fieldtype = "ToDo", "Метка", "Data"
+		adapter.editable = lambda: False
+		adapter.read = lambda names: {}
+		adapter.write = lambda doc, value: self.fail("нередактируемый адаптер записан")
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections[0].form_fields = "description\n@fake_label"
+		settings.save()
+		with patch("habibi_ui.cabinet.registry.adapter", return_value=adapter):
+			cabinet.save("todo", {"description": "с адаптером", "fake_label": "x"})
+
 	def test_save_без_права_создавать_запрещён(self):
 		settings = frappe.get_single("Cabinet Settings")
 		settings.sections[0].can_create = 0
