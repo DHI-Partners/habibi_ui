@@ -50,6 +50,20 @@ def _home(roles) -> str:
 	return "cabinet" if set(CABINET_ROLES) & set(roles) else "launcher"
 
 
+def socketio_port() -> int | None:
+	"""Порт socket.io для кабинета — только под dev-сервером бенча.
+
+	Под `bench start` socket.io слушает свой порт, а страница — порт вебсервера
+	(или vite), и Desk в этом случае подключается к порту из boot — см.
+	window.dev_server в frappe/public/js/frappe/socketio_client.js. В проде
+	nginx отдаёт socket.io с того же origin: порт не нужен, отдаём None, и
+	клиент подключается к своему origin, как и раньше.
+	"""
+	if not frappe._dev_server:
+		return None
+	return frappe.conf.get("socketio_port") or 9000
+
+
 @frappe.whitelist()
 def me() -> dict:
 	if frappe.session.user == "Guest":
@@ -95,4 +109,5 @@ def boot() -> dict:
 		"desk_theme": frappe.db.get_value("User", frappe.session.user, "desk_theme") or "",
 		# Тот же неймспейс socket.io, что и страница-обёртка — см. www/ui.py.
 		"site_name": frappe.local.site,
+		"socketio_port": socketio_port(),
 	}

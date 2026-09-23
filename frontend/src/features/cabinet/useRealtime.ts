@@ -3,18 +3,30 @@ import { useEffect } from "react";
 
 type Event = { topic: "chats" | "orders"; chat: string | null };
 
+// Под dev-сервером socket.io на своём порту — см. комментарий у useRealtime.
+function socketHost(): string {
+  const port = window.habibi.socketio_port;
+  const { protocol, hostname, port: pagePort, origin } = window.location;
+  if (!port || String(port) === pagePort) return origin;
+  return `${protocol}//${hostname}:${port}`;
+}
+
 /**
  * Подписка на habibi_cabinet через socket.io Frappe.
  *
  * Клиент socket.io Frappe на странице /ui не подключён: это не Desk. Поэтому
  * подключаемся сами — так же, как frappe/public/js/frappe/socketio_client.js:
- * тот же origin (кука сессии уходит сама, withCredentials лишь дублирует это
- * для CORS-случая), неймспейс `/<site_name>` суффиксом URL, а не опцией path.
+ * в проде тот же origin (кука сессии уходит сама, withCredentials нужен для
+ * dev-порта ниже), неймспейс `/<site_name>` суффиксом URL, а не опцией path.
  * reconnectionAttempts ограничен, чтобы неудачное подключение не долбило
  * сервер бесконечно.
  *
- * Нет socket.io (dev-сервер vite без прокси) — кабинет работает без живого
- * обновления, данные обновятся при переходе.
+ * Под dev-сервером (bench start, vite) socket.io слушает свой порт, а не порт
+ * страницы — как Desk при window.dev_server, берём его из boot
+ * (socketio_port). В проде порта в boot нет, и подключение идёт на свой origin.
+ *
+ * Не удалось подключиться — кабинет работает без живого обновления, данные
+ * обновятся при переходе.
  */
 export function useRealtime() {
   const queryClient = useQueryClient();
@@ -24,7 +36,7 @@ export function useRealtime() {
     import("socket.io-client")
       .then(({ io }) => {
         if (cancelled) return;
-        socket = io(`${window.location.origin}/${window.habibi.site_name ?? ""}`, {
+        socket = io(`${socketHost()}/${window.habibi.site_name ?? ""}`, {
           withCredentials: true,
           reconnectionAttempts: 3,
         });

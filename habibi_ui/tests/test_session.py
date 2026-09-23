@@ -67,10 +67,19 @@ class TestSessionBoot(IntegrationTestCase):
 	def test_отдаёт_тот_же_состав_что_страница_обёртка(self):
 		frappe.set_user("Administrator")
 		result = boot()
-		self.assertEqual(set(result), {"csrf_token", "user", "desk_theme", "site_name"})
+		self.assertEqual(set(result), {"csrf_token", "user", "desk_theme", "site_name", "socketio_port"})
 		self.assertEqual(result["user"], "Administrator")
 		self.assertTrue(result["csrf_token"])
 		self.assertEqual(result["site_name"], frappe.local.site)
+
+	def test_порт_socketio_только_под_dev_сервером(self):
+		# В проде socket.io за nginx на том же origin — порт клиенту не нужен,
+		# иначе кабинет полез бы на :9000 мимо прокси.
+		frappe.set_user("Administrator")
+		with patch.object(frappe, "_dev_server", 0):
+			self.assertIsNone(boot()["socketio_port"])
+		with patch.object(frappe, "_dev_server", 1), patch.dict(frappe.conf, {"socketio_port": 9123}):
+			self.assertEqual(boot()["socketio_port"], 9123)
 
 	def test_гость_отвергается(self):
 		self.addCleanup(frappe.set_user, "Administrator")

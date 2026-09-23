@@ -10,6 +10,8 @@ import frappe
 import frappe.sessions
 from frappe import _
 
+from habibi_ui.api.v1.session import socketio_port
+
 no_cache = 1
 
 ASSET_PREFIX = "/assets/habibi_ui/frontend/"
@@ -77,6 +79,8 @@ def get_context(context):
 					# Неймспейс socket.io кабинета: Frappe v16 подключается к
 					# `/<site_name>`, а не к корню — см. frappe/public/js/frappe/socketio_client.js.
 					"site_name": frappe.local.site,
+					# Отдельный порт socket.io под dev-сервером, None в проде.
+					"socketio_port": socketio_port(),
 				}
 			),
 			"script": assets["js"],
