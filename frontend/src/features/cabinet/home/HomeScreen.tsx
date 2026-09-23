@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { useSectionList } from "../api";
 import { useChatList } from "../chats/api";
-import { useTelegram } from "../settings/api";
+import { useTelegramStatus } from "../settings/api";
 
 export function HomeScreen() {
   // Раздел orders может быть недоступен (фича выключена или нет прав) —
@@ -11,7 +11,7 @@ export function HomeScreen() {
   // отрисуется целиком.
   const orders = useSectionList("orders", [["docstatus", "=", 0]]);
   const chats = useChatList();
-  const telegram = useTelegram().query.data;
+  const telegram = useTelegramStatus().data;
   // last_at — наивная локальная дата-время сайта, а не UTC: toISOString() тут
   // сдвинул бы «сегодня» на UTC-сутки и после местной полуночи занижал бы счёт.
   const now = new Date();
@@ -21,7 +21,7 @@ export function HomeScreen() {
 
   return (
     <section className="space-y-4">
-      {telegram && !telegram.connected && (
+      {telegram && telegram.state !== "connected" && (
         <Link to="/c/telegram" className="block rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
           Подключите Telegram — без него бот не получит сообщений клиентов.
         </Link>

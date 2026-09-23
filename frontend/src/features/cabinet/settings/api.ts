@@ -15,9 +15,20 @@ export type Profile = {
   tone: string;
   rules: Rule[];
 };
-export type TelegramStatus = { connected: boolean; username: string | null; last_message_at: string | null };
+// Состояние входа в Telegram-аккаунт бизнеса (habibi_ai.cabinet.settings.telegram_status).
+export type TelegramState = "none" | "code_sent" | "password_needed" | "connected" | "error";
+export type TelegramStatus = {
+  state: TelegramState;
+  phone: string | null;
+  full_name: string | null;
+  username: string | null;
+  last_message_at: string | null;
+  error: string | null;
+  ai_ready: boolean;
+  ai_note: string | null;
+};
 
-// Один и тот же приём для всех трёх настроек: читаем документ целиком,
+// Один и тот же приём для режима работы и профиля: читаем документ целиком,
 // сохраняем целиком, ответ сохранения сразу подставляем в кэш запроса —
 // отдельного рефетча после save не нужно (сервер и так отдаёт актуальный
 // документ, см. habibi_ai.cabinet.settings.*).
@@ -35,9 +46,29 @@ export const useHours = () =>
   useResource<Hours>("hours", "habibi_ai.cabinet.settings.get_hours", "habibi_ai.cabinet.settings.save_hours");
 export const useProfile = () =>
   useResource<Profile>("profile", "habibi_ai.cabinet.settings.get_profile", "habibi_ai.cabinet.settings.save_profile");
-export const useTelegram = () =>
-  useResource<TelegramStatus>(
-    "telegram",
-    "habibi_ai.cabinet.settings.telegram_status",
-    "habibi_ai.cabinet.settings.connect_telegram",
-  );
+
+export const useTelegramStatus = () =>
+  useQuery({
+    queryKey: ["cabinet", "telegram"],
+    queryFn: () => call<TelegramStatus>("habibi_ai.cabinet.settings.telegram_status"),
+  });
+
+// Вход в аккаунт — несколько шагов, и каждый отвечает свежим статусом:
+// его и кладём в кэш, как useResource. Код и пароль идут только в тело
+// запроса и нигде не сохраняются.
+function useTelegramStep(method: "request_code" | "sign_in" | "disconnect") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: Record<string, unknown>) => call<TelegramStatus>(`habibi_ai.cabinet.settings.${method}`, args),
+    onSuccess: (data) => queryClient.setQueryData(["cabinet", "telegram"], data),
+  });
+}
+
+export function useTelegram() {
+  return {
+    query: useTelegramStatus(),
+    requestCode: useTelegramStep("request_code"),
+    signIn: useTelegramStep("sign_in"),
+    disconnect: useTelegramStep("disconnect"),
+  };
+}
