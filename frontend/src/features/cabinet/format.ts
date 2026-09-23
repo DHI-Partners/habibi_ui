@@ -125,3 +125,18 @@ export function docstatusBadge(value: unknown): [string, Tone] {
   if (n === 2) return ["Отменён", "bad"];
   return ["Черновик", "new"];
 }
+
+export type StateKind = "new" | "accepted" | "rejected" | "other";
+
+const KIND_TONE: Record<StateKind, Tone> = { new: "new", accepted: "ok", rejected: "bad", other: "progress" };
+const KIND_LABEL: Record<StateKind, string> = { new: "Новый", accepted: "Принят", rejected: "Отклонён", other: "" };
+
+/**
+ * Бейдж заказа: цвет — по смыслу состояния (kind — orders._kind на сервере,
+ * одно правило для списка и экрана заказа), подпись — перевод известного
+ * имени состояния, незнакомое имя — как есть. Имена состояний у воркфлоу
+ * каждого сайта свои, поэтому цвет по имени не выбираем.
+ */
+export function orderBadge(state: string | null | undefined, kind: StateKind): [string, Tone] {
+  return [stateBadge(state)[0] || KIND_LABEL[kind], KIND_TONE[kind]];
+}

@@ -9,14 +9,15 @@ import { Input } from "../../shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../shared/ui/table";
 import { type Filter, type Row, useSectionList } from "./api";
 import { formatValue } from "./FieldInput";
-import { docstatusBadge, stateBadge } from "./format";
+import { docstatusBadge, orderBadge, type StateKind, stateBadge } from "./format";
 import { sectionIcon, useSectionBack } from "./nav";
 import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface } from "./ui";
 
 const NUMERIC = new Set(["Currency", "Float", "Int"]);
 
 // Не тип Frappe: так адаптер (например @order_status в habibi_ai) помечает
-// человеческий статус документа — он рисуется бейджем, как workflow_state.
+// человеческий статус документа — значение {state, kind}, рисуется бейджем
+// тем же правилом, что на экране заказа (orderBadge).
 const STATUS = "Status";
 
 /**
@@ -37,7 +38,13 @@ function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
     const [label, tone] = docstatusBadge(value);
     return <StatusBadge tone={tone}>{label}</StatusBadge>;
   }
-  if (field.fieldname === "workflow_state" || field.fieldtype === STATUS) {
+  if (field.fieldtype === STATUS) {
+    const status = value as { state: string; kind: StateKind } | null | undefined;
+    if (!status) return null;
+    const [label, tone] = orderBadge(status.state, status.kind);
+    return <StatusBadge tone={tone}>{label}</StatusBadge>;
+  }
+  if (field.fieldname === "workflow_state") {
     if (!value) return null;
     const [label, tone] = stateBadge(String(value));
     return <StatusBadge tone={tone}>{label}</StatusBadge>;

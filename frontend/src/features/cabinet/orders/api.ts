@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { call } from "../../../shared/api/client";
+import type { StateKind } from "../format";
 
 export type OrderAction = { action: string; kind: "accept" | "reject" | "other" };
 // Реальный контракт habibi_ai.cabinet.orders.apply не возвращает chat — сервер
@@ -8,7 +9,6 @@ export type OrderAction = { action: string; kind: "accept" | "reject" | "other" 
 // уведомления хранит только вид и текст.
 export type Notify = { kind: "accept" | "reject"; text: string };
 
-export type StateKind = "new" | "accepted" | "rejected" | "other";
 
 // Контракт habibi_ai.cabinet.orders.details: всё, что рисует экран заказа.
 // Необязательные поля (custom_* сайта, адрес, чат) приходят null, если их нет.

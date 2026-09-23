@@ -43,6 +43,10 @@ export function useRealtime() {
         socket.on("habibi_cabinet", (event) => {
           if (event.topic === "orders") {
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
+            // Открытый экран заказа тоже перечитывается: заказ мог принять
+            // сотрудник или сдвинуть кухня
+            void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-details"] });
+            void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-actions"] });
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "home"] });
           } else {
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "chats"] });

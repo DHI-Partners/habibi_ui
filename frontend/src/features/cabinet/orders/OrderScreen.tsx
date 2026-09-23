@@ -8,14 +8,13 @@ import type { CabinetSection } from "../../../shared/types/api";
 import { Button, buttonVariants } from "../../../shared/ui/button";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { Textarea } from "../../../shared/ui/textarea";
-import { clock, dateLabel, fulfilmentLabel, money, parseSiteDate, stateBadge, type Tone } from "../format";
+import { clock, dateLabel, fulfilmentLabel, money, orderBadge, parseSiteDate, type Tone } from "../format";
 import { EmptyState, ErrorNote, InitialAvatar, Page, ResponsiveModal, StatusBadge, surface, WarningNote } from "../ui";
 import {
   DISCARD_ACTION,
   type Notify,
   type OrderAction,
   type OrderDetails,
-  type StateKind,
   useApplyAction,
   useNotify,
   useOrderActions,
@@ -27,12 +26,6 @@ const LABELS: Record<string, string> = { accept: "Принять", reject: "От
 // Быстрые причины отказа — они уходят в шаблон сообщения клиенту
 // (order_rejected, переменная reason). Своя причина — полем ниже.
 const REASONS = ["Закончилась позиция", "Не возим в этот район", "Скоро закрываемся", "Слишком большая загрузка"];
-
-// Цвет бейджа — по смыслу состояния (state_kind с сервера), а не по его имени:
-// имена состояний у воркфлоу каждого сайта свои. Подпись — перевод известных
-// имён (stateBadge), незнакомое имя показывается как есть.
-const KIND_TONE: Record<StateKind, Tone> = { new: "new", accepted: "ok", rejected: "bad", other: "progress" };
-const KIND_LABEL: Record<StateKind, string> = { new: "Новый", accepted: "Принят", rejected: "Отклонён", other: "" };
 
 // Переписки — раздел chats из пресета; открытый чат ChatsScreen берёт из ?chat=.
 const chatHref = (chat: string) => `/c/chats?chat=${encodeURIComponent(chat)}`;
@@ -65,7 +58,7 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
   const [stateLabel, tone]: [string, Tone] = discarded
     ? ["Отклонён", "bad"]
     : data
-      ? [stateBadge(data.state)[0] || KIND_LABEL[data.state_kind], KIND_TONE[data.state_kind]]
+      ? orderBadge(data.state, data.state_kind)
       : ["", "neutral"];
   // Как в макете: «Отклонить» слева, «Принять» справа, прочие переходы — между.
   const ORDER = { reject: 0, other: 1, accept: 2 };
