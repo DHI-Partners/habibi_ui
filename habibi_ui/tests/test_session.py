@@ -67,9 +67,10 @@ class TestSessionBoot(IntegrationTestCase):
 	def test_отдаёт_тот_же_состав_что_страница_обёртка(self):
 		frappe.set_user("Administrator")
 		result = boot()
-		self.assertEqual(set(result), {"csrf_token", "user", "desk_theme"})
+		self.assertEqual(set(result), {"csrf_token", "user", "desk_theme", "site_name"})
 		self.assertEqual(result["user"], "Administrator")
 		self.assertTrue(result["csrf_token"])
+		self.assertEqual(result["site_name"], frappe.local.site)
 
 	def test_гость_отвергается(self):
 		self.addCleanup(frappe.set_user, "Administrator")

@@ -74,6 +74,9 @@ def get_context(context):
 					"csrf_token": csrf_token,
 					"user": frappe.session.user,
 					"desk_theme": desk_theme,
+					# Неймспейс socket.io кабинета: Frappe v16 подключается к
+					# `/<site_name>`, а не к корню — см. frappe/public/js/frappe/socketio_client.js.
+					"site_name": frappe.local.site,
 				}
 			),
 			"script": assets["js"],

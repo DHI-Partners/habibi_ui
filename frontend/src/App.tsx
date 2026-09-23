@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { ChatPage } from "./features/ai/ChatPage";
+import { CabinetIndex, CabinetShell, MorePage, SectionRoute } from "./features/cabinet/CabinetShell";
+import { GenericFormRoute } from "./features/cabinet/GenericForm";
 import { AppShell } from "./shared/ui/AppShell";
 import { GroupPage, Launcher, SectionPage } from "./shared/ui/Launcher";
 import { WorkspaceContent } from "./shared/ui/WorkspaceContent";
@@ -30,6 +32,15 @@ export function App() {
           тонкая шапка вместо AppShell, чтобы не тащить список модулей и
           не сжимать три колонки в max-w контента. См. ChatPage. */}
       <Route path="/ai" element={<ChatPage />} />
+      {/* Кабинет клиента: своя оболочка (сайдбар/таб-бар) вместо AppShell,
+          разделы задаёт пресет, а не роутер — см. features/cabinet. */}
+      <Route path="/c" element={<CabinetShell />}>
+        <Route index element={<CabinetIndex />} />
+        <Route path="more" element={<MorePage />} />
+        <Route path=":key" element={<SectionRoute />} />
+        <Route path=":key/new" element={<GenericFormRoute />} />
+        <Route path=":key/:name" element={<GenericFormRoute />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

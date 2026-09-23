@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowUpRight, Bell, Sparkles } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 
 import { useMe, useModules, useSidebarGroup } from "../api/queries";
 import { desktopVisual } from "../lib/moduleVisuals";
@@ -232,6 +232,10 @@ export function Launcher() {
   const { data: me } = useMe();
   const { data: sections, isPending, error, refetch, isFetching } = useModules();
   const firstName = me?.full_name.split(" ")[0] ?? "";
+
+  // Кабинет — домашняя страница для ролей кабинета (см. session._home на
+  // сервере): решает сервер, лаунчер только перенаправляет.
+  if (me?.home === "cabinet") return <Navigate to="/c" replace />;
 
   return (
     <Shell>

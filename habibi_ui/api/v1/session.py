@@ -93,4 +93,6 @@ def boot() -> dict:
 		"csrf_token": frappe.sessions.get_csrf_token(),
 		"user": frappe.session.user,
 		"desk_theme": frappe.db.get_value("User", frappe.session.user, "desk_theme") or "",
+		# Тот же неймспейс socket.io, что и страница-обёртка — см. www/ui.py.
+		"site_name": frappe.local.site,
 	}

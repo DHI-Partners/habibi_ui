@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "vite --config frontend/vite.config.ts",
-    "build": "vite build --config frontend/vite.config.ts"
+    "build": "vite build --config frontend/vite.config.ts",
+    "typecheck": "tsc -p frontend/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -26,6 +27,7 @@
     "react": "^19",
     "react-dom": "^19",
     "react-router-dom": "^7.18.2",
+    "socket.io-client": "^4.7.1",
     "tailwind-merge": "^3.6.0"
   }
 }
