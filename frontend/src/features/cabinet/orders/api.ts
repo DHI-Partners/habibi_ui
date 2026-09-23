@@ -18,13 +18,21 @@ export function useOrderActions(name: string) {
   });
 }
 
+// "discard" — синтетическое действие NO_WORKFLOW_REJECT из orders.py: единственная
+// ветка apply(), которая удаляет черновик заказа (frappe.delete_doc), а не переводит
+// его по воркфлоу. После неё order-actions(name) обречён на 404 — не рефетчим то,
+// что заведомо не читается, и явно сигналим об этом компоненту.
+export const DISCARD_ACTION = "discard";
+
 export function useApplyAction(name: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ action, reason }: { action: string; reason: string }) =>
       call<{ state: string; notify: Notify | null }>("habibi_ai.cabinet.orders.apply", { name, action, reason }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-actions", name] });
+    onSuccess: (_result, { action }) => {
+      if (action !== DISCARD_ACTION) {
+        void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-actions", name] });
+      }
       void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
     },
   });

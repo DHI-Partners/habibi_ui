@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
-import { type ChatItem, useChatCommand, useChatList, useMessages } from "./api";
+import { type ChatItem, useChatList, useMessages, usePauseChat, useResumeChat, useSendMessage } from "./api";
 
 const AUTHOR = { client: "Клиент", bot: "Бот", staff: "Вы" } as const;
+
+// Насколько близко к низу нужно быть, чтобы новое сообщение само подскроллило
+// ленту вниз. Больше похоже на «читатель и так почти у конца», чем на точный 0.
+const NEAR_BOTTOM_PX = 80;
 
 export function ChatsScreen() {
   const chats = useChatList();
@@ -40,10 +44,27 @@ export function ChatsScreen() {
 
 function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
   const messages = useMessages(chat.chat);
-  const send = useChatCommand("send");
-  const pause = useChatCommand("pause");
-  const resume = useChatCommand("resume");
+  const send = useSendMessage();
+  const pause = usePauseChat();
+  const resume = useResumeChat();
   const [text, setText] = useState("");
+
+  const listRef = useRef<HTMLOListElement>(null);
+  // Читатель мог отмотать вверх к истории — новое сообщение не должно вырывать
+  // его оттуда. true — «был у низа», отслеживаем это на каждый скролл; при
+  // смене чата считаем, что мы у низа заново (типичный вход в переписку — сразу
+  // к последнему сообщению, а не туда, где случайно застрял скролл до этого).
+  const nearBottomRef = useRef(true);
+  const activeChatRef = useRef(chat.chat);
+  if (activeChatRef.current !== chat.chat) {
+    activeChatRef.current = chat.chat;
+    nearBottomRef.current = true;
+  }
+
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (el && nearBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [chat.chat, messages.data]);
 
   return (
     <section className="flex min-w-0 flex-1 flex-col rounded-2xl border border-border">
@@ -72,7 +93,14 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
           </button>
         )}
       </header>
-      <ol className="flex-1 space-y-2 overflow-y-auto p-3">
+      <ol
+        ref={listRef}
+        className="flex-1 space-y-2 overflow-y-auto p-3"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+        }}
+      >
         {messages.data?.map((m) => (
           <li
             key={m.name}

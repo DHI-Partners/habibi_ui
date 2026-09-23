@@ -1,9 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { type Notify, useApplyAction, useNotify, useOrderActions } from "./api";
+import { DISCARD_ACTION, type Notify, useApplyAction, useNotify, useOrderActions } from "./api";
 
 const LABELS: Record<string, string> = { accept: "Принять", reject: "Отклонить" };
+
+function DoneLink() {
+  return (
+    <p className="text-sm text-muted-foreground">
+      Готово.{" "}
+      <Link to="/c/orders" className="text-primary underline">
+        Назад к заказам
+      </Link>
+    </p>
+  );
+}
 
 export function OrderActions({ name }: { name: string }) {
   const actions = useOrderActions(name);
@@ -11,22 +22,23 @@ export function OrderActions({ name }: { name: string }) {
   const notify = useNotify(name);
   const [draft, setDraft] = useState<Notify | null>(null);
   const [reason, setReason] = useState("");
-  // «Отклонить» без ветки воркфлоу удаляет черновик заказа (см. orders.py:
-  // apply → discard). После этого actions(name) отвечает 404, а форма заказа
-  // может ещё не перечитаться — но черновик уведомления и его отправка
-  // работают независимо от заказа (notify находит чат сам, см. notify.py).
-  // Поэтому ошибка actions не должна прятать уже показанный черновик, а
-  // после отправки/отказа от отправки — просто предлагаем вернуться к списку.
   const [skipped, setSkipped] = useState(false);
-  // Если чата нет (can_notify: false), notify в ответе apply будет null — черновика
-  // не будет, а actions после discard всё равно уйдёт в 404. Не показываем в этом
-  // случае голую ошибку сети/сервера навечно: applied фиксирует, что 404 — ожидаемое
-  // следствие нашего же действия, а не сбой при обычном открытии формы.
-  const [applied, setApplied] = useState(false);
+  // discard (см. DISCARD_ACTION в api.ts) удаляет черновик заказа на сервере —
+  // документа больше нет, а order-actions(name) больше не перечитывается (api.ts
+  // не инвалидирует её после discard). discarded — единственный явный сигнал
+  // «заказа больше нет»: TanStack Query после ошибки рефетча оставляет старые
+  // actions.data нетронутыми (isRefetchError сохраняет data), так что сами кнопки
+  // остались бы кликабельными и рабочими — их нужно прятать явным флагом, а не
+  // выводить из actions.isError/actions.data.
+  const [discarded, setDiscarded] = useState(false);
+
+  // Больше нечего показывать: либо discard без чата для уведомления (черновика
+  // нет вовсе), либо черновик уже отправлен/пропущен пользователем.
+  const finished = skipped || (discarded && !draft);
 
   return (
     <div className="space-y-3 rounded-2xl border border-border p-4">
-      {actions.data ? (
+      {!discarded && actions.data && (
         <>
           <div className="text-sm text-muted-foreground">Статус: {actions.data.state}</div>
           <div className="flex flex-wrap gap-2">
@@ -41,7 +53,7 @@ export function OrderActions({ name }: { name: string }) {
                     {
                       onSuccess: (r) => {
                         setSkipped(false);
-                        setApplied(true);
+                        if (a.action === DISCARD_ACTION) setDiscarded(true);
                         if (r.notify) setDraft(r.notify);
                       },
                     },
@@ -66,19 +78,9 @@ export function OrderActions({ name }: { name: string }) {
             />
           )}
         </>
-      ) : (
-        actions.isError &&
-        !draft &&
-        (applied ? (
-          <p className="text-sm text-muted-foreground">
-            Готово.{" "}
-            <Link to="/c/orders" className="text-primary underline">
-              Назад к заказам
-            </Link>
-          </p>
-        ) : (
-          <p className="text-destructive">{actions.error.message}</p>
-        ))
+      )}
+      {!discarded && !actions.data && actions.isError && (
+        <p className="text-destructive">{actions.error.message}</p>
       )}
       {apply.error && <p className="text-destructive">{apply.error.message}</p>}
       {draft && !skipped && (
@@ -113,14 +115,7 @@ export function OrderActions({ name }: { name: string }) {
           )}
         </div>
       )}
-      {draft && skipped && (
-        <p className="text-sm text-muted-foreground">
-          Готово.{" "}
-          <Link to="/c/orders" className="text-primary underline">
-            Назад к заказам
-          </Link>
-        </p>
-      )}
+      {finished && <DoneLink />}
     </div>
   );
 }

@@ -22,13 +22,23 @@ export const useMessages = (chat: string | null) =>
     enabled: chat !== null,
   });
 
-export function useChatCommand(method: "send" | "pause" | "resume") {
+// Общее тело pause/resume/send — общая инвалидация после любой из трёх, разная
+// сигнатура аргументов: send() на сервере требует текст, pause()/resume() — нет
+// (chats.py). Разные обёртки ниже кодируют это на уровне типов, чтобы
+// `usePause().mutate({ chat })` без text не заставлял звать send без текста и
+// наоборот — раньше единая useChatCommand("send"|"pause"|"resume") принимала
+// { chat; text?: string } для всех трёх, и text для send было легко забыть.
+function useChatCommand<TVars extends { chat: string }>(method: "send" | "pause" | "resume") {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (args: { chat: string; text?: string }) => call<null>(`habibi_ai.cabinet.chats.${method}`, args),
-    onSuccess: (_d, { chat }) => {
+    mutationFn: (args: TVars) => call<null>(`habibi_ai.cabinet.chats.${method}`, args),
+    onSuccess: (_d: null, { chat }: TVars) => {
       void queryClient.invalidateQueries({ queryKey: ["cabinet", "chats"] });
       void queryClient.invalidateQueries({ queryKey: ["cabinet", "messages", chat] });
     },
   });
 }
+
+export const useSendMessage = () => useChatCommand<{ chat: string; text: string }>("send");
+export const usePauseChat = () => useChatCommand<{ chat: string }>("pause");
+export const useResumeChat = () => useChatCommand<{ chat: string }>("resume");
