@@ -32,9 +32,11 @@ export type TelegramStatus = {
 // сохраняем целиком, ответ сохранения сразу подставляем в кэш запроса —
 // отдельного рефетча после save не нужно (сервер и так отдаёт актуальный
 // документ, см. habibi_ai.cabinet.settings.*).
-function useResource<T>(key: string, getter: string, setter: string) {
+// enabled=false — для экранов, которым ресурс нужен лишь «если можно»
+// (главная, сайдбар): сотруднику настройки не положены, и запрос не уходит.
+function useResource<T>(key: string, getter: string, setter: string, enabled = true) {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["cabinet", key], queryFn: () => call<T>(getter) });
+  const query = useQuery({ queryKey: ["cabinet", key], queryFn: () => call<T>(getter), enabled });
   const mutation = useMutation({
     mutationFn: (args: Record<string, unknown>) => call<T>(setter, args),
     onSuccess: (data) => queryClient.setQueryData(["cabinet", key], data),
@@ -42,15 +44,21 @@ function useResource<T>(key: string, getter: string, setter: string) {
   return { query, mutation };
 }
 
-export const useHours = () =>
-  useResource<Hours>("hours", "habibi_ai.cabinet.settings.get_hours", "habibi_ai.cabinet.settings.save_hours");
-export const useProfile = () =>
-  useResource<Profile>("profile", "habibi_ai.cabinet.settings.get_profile", "habibi_ai.cabinet.settings.save_profile");
+export const useHours = (enabled = true) =>
+  useResource<Hours>("hours", "habibi_ai.cabinet.settings.get_hours", "habibi_ai.cabinet.settings.save_hours", enabled);
+export const useProfile = (enabled = true) =>
+  useResource<Profile>(
+    "profile",
+    "habibi_ai.cabinet.settings.get_profile",
+    "habibi_ai.cabinet.settings.save_profile",
+    enabled,
+  );
 
-export const useTelegramStatus = () =>
+export const useTelegramStatus = (enabled = true) =>
   useQuery({
     queryKey: ["cabinet", "telegram"],
     queryFn: () => call<TelegramStatus>("habibi_ai.cabinet.settings.telegram_status"),
+    enabled,
   });
 
 // Вход в аккаунт — несколько шагов, и каждый отвечает свежим статусом:

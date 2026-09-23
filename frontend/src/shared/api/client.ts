@@ -8,7 +8,9 @@ function parseFrappeError(body: unknown): string | null {
   try {
     const list = JSON.parse(messages) as string[];
     const first = JSON.parse(list[0]) as { message?: string };
-    return first.message ?? null;
+    // Frappe размечает сообщения HTML (<strong>…</strong>) под Desk; у нас они
+    // выводятся текстом — теги только мешали бы читать.
+    return first.message ? first.message.replace(/<[^>]+>/g, "") : null;
   } catch {
     return null;
   }

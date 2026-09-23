@@ -14,11 +14,12 @@ export function useCabinetConfig() {
   });
 }
 
-export function useSectionList(key: string, filters: Filter[]) {
+export function useSectionList(key: string, filters: Filter[], enabled = true) {
   return useQuery({
     queryKey: ["cabinet", "list", key, filters],
     queryFn: () =>
       call<{ rows: Row[]; has_more: boolean }>("habibi_ui.api.v1.cabinet.list", { section: key, filters }),
+    enabled,
   });
 }
 

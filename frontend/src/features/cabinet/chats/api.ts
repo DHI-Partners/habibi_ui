@@ -12,8 +12,12 @@ export type ChatItem = {
 };
 export type ChatMessage = { name: string; text: string; at: string; author: "client" | "bot" | "staff" };
 
-export const useChatList = () =>
-  useQuery({ queryKey: ["cabinet", "chats"], queryFn: () => call<ChatItem[]>("habibi_ai.cabinet.chats.list") });
+export const useChatList = (enabled = true) =>
+  useQuery({
+    queryKey: ["cabinet", "chats"],
+    queryFn: () => call<ChatItem[]>("habibi_ai.cabinet.chats.list"),
+    enabled,
+  });
 
 export const useMessages = (chat: string | null) =>
   useQuery({
