@@ -4,9 +4,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Skeleton } from "../../shared/ui/skeleton";
 import { useCabinetConfig, useSaveSectionDoc, useSectionDoc } from "./api";
 import { FieldInput } from "./FieldInput";
+import { OrderActions } from "./orders/OrderActions";
 
 // Отдельные экраны действий (заказ) подменяют форму через ACTIONS — см. задачу 14.
-export const ACTIONS: Record<string, React.ComponentType<{ name: string }>> = {};
+export const ACTIONS: Record<string, React.ComponentType<{ name: string }>> = {
+  orders: OrderActions,
+};
 
 export function GenericFormRoute() {
   // react-router уже декодирует параметр пути (см. комментарий у
