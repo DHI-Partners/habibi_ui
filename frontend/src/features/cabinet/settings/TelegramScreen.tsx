@@ -285,13 +285,12 @@ function Connected(props: { status: TelegramStatus; pending: boolean; onAsk: () 
   return (
     <div className="space-y-3">
       <div className={cn(surface, "space-y-4 p-4")}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <InitialAvatar name={status.full_name || status.phone || "T"} size="lg" />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] font-semibold">{status.full_name || "Аккаунт Telegram"}</div>
-            <div className="truncate text-[13px] text-muted-foreground">
-              {[username, status.phone].filter(Boolean).join(" · ")}
-            </div>
+            {username && <div className="truncate text-[13px] text-muted-foreground">{username}</div>}
+            {status.phone && <div className="truncate text-[13px] text-muted-foreground">{status.phone}</div>}
           </div>
           <StatusBadge tone="ok">
             <CheckCircle2 className="size-3" />
