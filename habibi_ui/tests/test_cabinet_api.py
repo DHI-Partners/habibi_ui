@@ -126,3 +126,84 @@ class TestCabinetApi(IntegrationTestCase):
 		rows = cabinet.list("todo_ds")["rows"]
 		(row,) = [r for r in rows if r["name"] == todo.name]
 		self.assertEqual(row["docstatus"], 0)
+
+	def test_get_прячет_поле_без_доступа_по_permlevel(self):
+		# frappe.get_doc не проверяет права сам: без явного check_permission и
+		# apply_fieldlevel_read_permissions() в get() поле уровня 1 (Customize
+		# Form → Permission Rules) утекло бы любому пользователю с доступом
+		# уровня 0 — именно то, что здесь проверяется. permlevel — через Property
+		# Setter (существующее поле ToDo), не через Custom Field: добавление
+		# Custom Field меняет схему таблицы (ALTER TABLE), а DDL в MySQL сам
+		# коммитит текущую транзакцию — откат в tearDown тогда не срабатывает и
+		# тестовые данные остаются на сайте навсегда.
+		#
+		# Роль — своя тестовая, а не Habibi Owner/Staff (их ещё нет на этом
+		# сайте как Role) и не "All": ToDo прячет документы по владельцу для
+		# любого пользователя без «настоящей» (не автоматической) роли с
+		# доступом на чтение — frappe.desk.doctype.todo.todo.has_permission.
+		role_name = "Cabinet Permlevel Test Role"
+		if not frappe.db.exists("Role", role_name):
+			frappe.get_doc({"doctype": "Role", "role_name": role_name, "desk_access": 0}).insert(
+				ignore_permissions=True
+			)
+
+		frappe.make_property_setter(
+			{"doctype": "ToDo", "fieldname": "priority", "property": "permlevel", "value": "1", "property_type": "Int"}
+		)
+		# Custom DocPerm полностью заменяет permissions доктайпа на сайте — поэтому
+		# здесь перечислен весь набор ролей, которым нужен доступ, а не только
+		# новая level-1 запись.
+		frappe.get_doc(
+			{
+				"doctype": "Custom DocPerm",
+				"parent": "ToDo",
+				"parenttype": "DocType",
+				"parentfield": "permissions",
+				"role": role_name,
+				"permlevel": 0,
+				"read": 1,
+				"write": 1,
+				"create": 1,
+			}
+		).insert()
+		frappe.get_doc(
+			{
+				"doctype": "Custom DocPerm",
+				"parent": "ToDo",
+				"parenttype": "DocType",
+				"parentfield": "permissions",
+				"role": "System Manager",
+				"permlevel": 1,
+				"read": 1,
+			}
+		).insert()
+		frappe.clear_cache(doctype="ToDo")
+		self.addCleanup(frappe.clear_cache, doctype="ToDo")
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections[0].roles = role_name
+		settings.save()
+
+		todo = frappe.get_doc({"doctype": "ToDo", "description": "секретное", "priority": "High"}).insert()
+
+		user_email = "cabinet-permlevel-test@example.com"
+		if not frappe.db.exists("User", user_email):
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": user_email,
+					"first_name": "Cabinet Permlevel Test",
+					"send_welcome_email": 0,
+				}
+			)
+			user.insert(ignore_permissions=True)
+			user.add_roles(role_name)
+
+		frappe.set_user(user_email)
+		result = cabinet.get("todo", todo.name)
+		self.assertIsNone(result.get("priority"))
+
+		frappe.set_user("Administrator")
+		admin_result = cabinet.get("todo", todo.name)
+		self.assertEqual(admin_result["priority"], "High")

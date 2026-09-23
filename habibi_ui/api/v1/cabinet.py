@@ -194,6 +194,13 @@ def get(section, name):
 	_require_login()
 	row, s = _section(section)
 	doc = _doc_in_section(row, s, name)
+	# frappe.get_doc не проверяет права сам — ни на чтение документа (пропускает
+	# контроллерный has_permission), ни по permlevel полей (Customize Form →
+	# Permission Rules). list() безопасен готовым fields=[...] в get_list, а здесь
+	# читаем doc.get(...) напрямую, и без явного вызова уровень поля утекал бы мимо
+	# настроенных на сайте правил.
+	doc.check_permission("read")
+	doc.apply_fieldlevel_read_permissions()
 	specs = parse_fields(row.form_fields)
 	result = {"name": doc.name}
 	for spec in specs:
