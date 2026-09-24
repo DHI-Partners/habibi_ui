@@ -1,16 +1,15 @@
-import { ChevronRight, MessageCircle, RotateCw, Send, ShoppingBag } from "lucide-react";
+import { ChevronRight, MessageCircle, Send, ShoppingBag } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { cn } from "../../../shared/lib/utils";
-import { Button } from "../../../shared/ui/button";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { useCabinetConfig, useSectionList } from "../api";
 import { useChatList } from "../chats/api";
 import { dateLabel, fulfilmentLabel, listStamp, money, plural, shortNo } from "../format";
 import { useHours, useProfile, useTelegramStatus } from "../settings/api";
 import { openStatus } from "../settings/hours";
-import { ErrorNote, InitialAvatar, SectionTitle, StatusBadge, surface, WarningNote } from "../ui";
+import { InitialAvatar, RetryNote, SectionTitle, StatusBadge, surface, WarningNote } from "../ui";
 
 const RECENT = 5;
 
@@ -104,7 +103,7 @@ export function HomeScreen() {
             <section className="min-w-0 space-y-2">
               <SectionTitle action={<AllLink to="/c/orders" />}>Новые заказы</SectionTitle>
               {orders.error ? (
-                <BlockError what="заказы" message={orders.error.message} onRetry={() => void orders.refetch()} />
+                <RetryNote title="Не удалось загрузить заказы" message={orders.error.message} onRetry={() => void orders.refetch()} />
               ) : orders.isPending ? (
                 <RowsSkeleton />
               ) : newOrders.length === 0 ? (
@@ -143,7 +142,7 @@ export function HomeScreen() {
             <section className="min-w-0 space-y-2">
               <SectionTitle action={<AllLink to="/c/chats" />}>Переписки</SectionTitle>
               {chats.error ? (
-                <BlockError what="переписки" message={chats.error.message} onRetry={() => void chats.refetch()} />
+                <RetryNote title="Не удалось загрузить переписки" message={chats.error.message} onRetry={() => void chats.refetch()} />
               ) : chats.isPending ? (
                 <RowsSkeleton />
               ) : !chats.data?.length ? (
@@ -224,20 +223,6 @@ function Stat(props: { to: string; value: number | null | undefined; label: stri
         {props.label}
       </span>
     </Link>
-  );
-}
-
-// Не загрузилось — так и говорим: «Новых заказов нет» на месте ошибки
-// владелец принял бы за правду.
-function BlockError({ what, message, onRetry }: { what: string; message: string; onRetry: () => void }) {
-  return (
-    <ErrorNote title={`Не удалось загрузить ${what}`}>
-      <span className="block">{message}</span>
-      <Button variant="outline" size="sm" className="mt-2 h-9" onClick={onRetry}>
-        <RotateCw />
-        Повторить
-      </Button>
-    </ErrorNote>
   );
 }
 

@@ -1,4 +1,4 @@
-import { ChevronLeft, type LucideIcon, TriangleAlert } from "lucide-react";
+import { ChevronLeft, type LucideIcon, RotateCw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -6,7 +6,7 @@ import { cn } from "../../shared/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "../../shared/ui/alert";
 import { Avatar, AvatarFallback } from "../../shared/ui/avatar";
 import { Badge } from "../../shared/ui/badge";
-import { buttonVariants } from "../../shared/ui/button";
+import { Button, buttonVariants } from "../../shared/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../shared/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../../shared/ui/sheet";
 import { Skeleton } from "../../shared/ui/skeleton";
@@ -158,6 +158,22 @@ export function ErrorNote({ title, children }: { title?: string; children: React
       {title && <AlertTitle>{title}</AlertTitle>}
       <AlertDescription>{children}</AlertDescription>
     </Alert>
+  );
+}
+
+/**
+ * Не загрузилось — так и говорим, с «Повторить»: пустой список на месте ошибки
+ * владелец принял бы за правду («заказов нет», «переписок нет»).
+ */
+export function RetryNote({ title, message, onRetry }: { title: string; message: string; onRetry: () => void }) {
+  return (
+    <ErrorNote title={title}>
+      <span className="block">{message}</span>
+      <Button variant="outline" size="sm" className="mt-2 h-9" onClick={onRetry}>
+        <RotateCw />
+        Повторить
+      </Button>
+    </ErrorNote>
   );
 }
 

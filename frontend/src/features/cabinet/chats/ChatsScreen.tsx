@@ -10,7 +10,7 @@ import { Input } from "../../../shared/ui/input";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { clock, dayTitle, listStamp, parseSiteDate } from "../format";
 import { useSectionBack } from "../nav";
-import { EmptyState, ErrorNote, InitialAvatar, ListSkeleton, StatusBadge } from "../ui";
+import { EmptyState, InitialAvatar, ListSkeleton, RetryNote, StatusBadge } from "../ui";
 import { type ChatItem, type ChatMessage, useChatList, useMessages, usePauseChat, useResumeChat, useSendMessage } from "./api";
 
 const AUTHOR = { client: "Клиент", bot: "Бот", staff: "Вы" } as const;
@@ -50,7 +50,11 @@ export function ChatsScreen({ section }: { section: CabinetSection }) {
           {chats.isPending && <ListSkeleton rows={6} className="p-3" />}
           {chats.error && (
             <div className="p-3">
-              <ErrorNote title="Не удалось загрузить переписки">{chats.error.message}</ErrorNote>
+              <RetryNote
+                title="Не удалось загрузить переписки"
+                message={chats.error.message}
+                onRetry={() => void chats.refetch()}
+              />
             </div>
           )}
           {chats.data?.length === 0 && (
@@ -101,6 +105,25 @@ export function ChatsScreen({ section }: { section: CabinetSection }) {
           </div>
           <div className="flex-1 p-4">
             <BubblesSkeleton />
+          </div>
+        </div>
+      )}
+      {active && chats.isError && !chats.data && (
+        // Открыли чат по ссылке (?chat=), а список не загрузился: на телефоне
+        // панель списка скрыта, и без этого был бы пустой экран.
+        <div className="flex flex-1 flex-col md:hidden">
+          <header className="flex min-h-14 items-center gap-2 border-b px-3">
+            <Button variant="ghost" size="icon-lg" onClick={() => setParams({})} aria-label="Назад" className="-ml-1">
+              <ChevronLeft className="size-5" />
+            </Button>
+            <h1 className="flex-1 text-lg font-semibold tracking-tight">{section.label}</h1>
+          </header>
+          <div className="p-4">
+            <RetryNote
+              title="Не удалось загрузить переписку"
+              message={chats.error.message}
+              onRetry={() => void chats.refetch()}
+            />
           </div>
         </div>
       )}
@@ -212,7 +235,13 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
         }}
       >
         {messages.isPending && <BubblesSkeleton />}
-        {messages.error && <ErrorNote title="Не удалось загрузить сообщения">{messages.error.message}</ErrorNote>}
+        {messages.error && (
+          <RetryNote
+            title="Не удалось загрузить сообщения"
+            message={messages.error.message}
+            onRetry={() => void messages.refetch()}
+          />
+        )}
         {messages.data?.length === 0 && (
           <p className="py-10 text-center text-sm text-muted-foreground">Сообщений пока нет</p>
         )}

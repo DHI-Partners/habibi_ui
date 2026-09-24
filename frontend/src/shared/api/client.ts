@@ -26,18 +26,32 @@ export class ApiError extends Error {
   }
 }
 
+// Браузерное «Failed to fetch» и HTML-страница прокси (502/504) владельцу
+// ничего не говорят — на экран идут эти фразы.
+export const OFFLINE = "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.";
+export const UNAVAILABLE = "Сервер временно недоступен. Попробуйте через минуту.";
+
 export async function call<T>(method: string, params?: Record<string, unknown>): Promise<T> {
-  const response = await fetch(BASE + method, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Frappe-CSRF-Token": window.habibi.csrf_token,
-    },
-    body: JSON.stringify(params ?? {}),
-  });
+  let response: Response;
+  try {
+    response = await fetch(BASE + method, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Frappe-CSRF-Token": window.habibi.csrf_token,
+      },
+      body: JSON.stringify(params ?? {}),
+    });
+  } catch {
+    throw new ApiError(OFFLINE, 0);
+  }
 
-  const body = await response.json().catch(() => null);
+  const body: unknown = await response.json().catch(() => null);
 
+  // Frappe всегда отвечает JSON; не JSON — значит, ответил не он, а прокси
+  if (body === null) {
+    throw new ApiError(UNAVAILABLE, response.status);
+  }
   if (!response.ok) {
     throw new ApiError(parseFrappeError(body) ?? `Запрос не выполнен (${response.status})`, response.status);
   }
