@@ -41,8 +41,11 @@ def set_default_app(doc, method=None):
 	if cabinet_only(roles):
 		if not doc.default_app:
 			doc.default_app = APP
-	elif doc.default_app == APP and not (roles & set(CABINET_ROLES)) and "System Manager" not in roles:
-		# Кабинет им больше недоступен, а get_route() отвёл бы их туда по-прежнему.
+	elif doc.default_app == APP:
+		# Роль кабинета сняли или пользователя повысили до System Manager:
+		# get_route() по-прежнему вёл бы его в кабинет, а ему теперь нужен Desk.
+		# Цена: System Manager не может держать кабинет приложением по
+		# умолчанию — кабинет он откроет по /ui/c или с экрана приложений.
 		doc.default_app = ""
 
 

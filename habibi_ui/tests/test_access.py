@@ -63,6 +63,27 @@ class TestCabinetAccess(IntegrationTestCase):
 		_user(OWNER, "Habibi Owner")
 		self.assertFalse(_user(OWNER, "Sales User", default_app="habibi_ui").default_app)
 
+	def test_повышение_до_system_manager_убирает_кабинет_по_умолчанию(self):
+		# Владелец стал администратором: ему нужен Desk, а не кабинет.
+		self.assertEqual(_user(OWNER, "Habibi Owner").default_app, "habibi_ui")
+		user = frappe.get_doc("User", OWNER)
+		user.append("roles", {"role": "System Manager"})
+		user.save(ignore_permissions=True)
+		self.assertFalse(user.default_app)
+
+	def test_патч_убирает_кабинет_у_system_manager(self):
+		_user(ADMIN, "Habibi Owner", "System Manager")
+		_user(OTHER, "Sales User")
+		# Повышенные до хука: кабинет остался в базе.
+		frappe.db.set_value("User", ADMIN, "default_app", "habibi_ui")
+		frappe.db.set_value("User", OTHER, "default_app", "habibi_ui")
+
+		set_cabinet_default_app.execute()
+		set_cabinet_default_app.execute()
+
+		self.assertFalse(frappe.db.get_value("User", ADMIN, "default_app"))
+		self.assertFalse(frappe.db.get_value("User", OTHER, "default_app"))
+
 	def test_без_ролей_кабинета_ничего_не_ставится(self):
 		self.assertFalse(_user(OTHER, "Sales User").default_app)
 
