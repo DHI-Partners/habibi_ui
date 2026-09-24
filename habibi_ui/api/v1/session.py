@@ -6,7 +6,7 @@ import frappe
 import frappe.sessions
 from frappe import _
 
-from habibi_ui.api.v1.cabinet import CABINET_ROLES
+from habibi_ui.cabinet.access import cabinet_only
 
 # Заголовки модулей задаются здесь, а не берутся из app_title: в интерфейсе
 # они видны пользователю и переводятся отдельно от технических имён приложений.
@@ -45,9 +45,7 @@ def _home(roles) -> str:
 	владельца остаётся в лаунчере — ему нужна вся система, кабинет он
 	откроет по /ui/c.
 	"""
-	if "System Manager" in roles:
-		return "launcher"
-	return "cabinet" if set(CABINET_ROLES) & set(roles) else "launcher"
+	return "cabinet" if cabinet_only(roles) else "launcher"
 
 
 def socketio_port() -> int | None:

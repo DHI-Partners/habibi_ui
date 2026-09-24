@@ -1,7 +1,11 @@
-import { ChevronRight, Ellipsis, LayoutGrid, Store } from "lucide-react";
+import { ChevronRight, Ellipsis, LayoutGrid, LogOut, Store } from "lucide-react";
+import { useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
+import { call } from "../../shared/api/client";
 import { cn } from "../../shared/lib/utils";
+import { Button } from "../../shared/ui/button";
 import { Skeleton } from "../../shared/ui/skeleton";
 import { Toaster } from "../../shared/ui/sonner";
 import { ThemeToggle } from "../../shared/ui/ThemeToggle";
@@ -38,7 +42,6 @@ export function CabinetShell() {
   const [, key, sub] = location.pathname.split("/").filter(Boolean);
   const roots = new Set([...tabs.map((s) => s.key), "more"]);
   const showTabs = !key || (roots.has(key) && !sub && !params.has("chat"));
-  const withMore = sections.length > TABS;
 
   return (
     <div className="flex min-h-dvh bg-muted/40">
@@ -71,9 +74,12 @@ export function CabinetShell() {
             );
           })}
         </nav>
-        <div className="flex items-center gap-2 border-t px-3 py-3">
-          <span className="min-w-0 flex-1 truncate px-2 text-xs text-muted-foreground">{window.habibi.user}</span>
-          <ThemeToggle />
+        <div className="space-y-1 border-t px-3 py-3">
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate px-2 text-xs text-muted-foreground">{window.habibi.user}</span>
+            <ThemeToggle />
+          </div>
+          <LogoutButton />
         </div>
       </aside>
 
@@ -85,16 +91,63 @@ export function CabinetShell() {
         <nav
           aria-label="Разделы"
           className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-background/95 px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] backdrop-blur-sm md:hidden"
-          style={{ gridTemplateColumns: `repeat(${tabs.length + (withMore ? 1 : 0)}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
         >
           {tabs.map((s) => (
             <TabLink key={s.key} to={`/c/${s.key}`} label={s.label} icon={sectionIcon(s.icon)} />
           ))}
-          {withMore && <TabLink to="/c/more" label="Ещё" icon={Ellipsis} />}
+          {/* «Ещё» есть всегда, даже когда разделы уместились в таб-бар: там
+              тема и «Выйти», другого места для них на телефоне нет. */}
+          <TabLink to="/c/more" label="Ещё" icon={Ellipsis} />
         </nav>
       )}
       <Toaster position="top-center" />
     </div>
+  );
+}
+
+/**
+ * Выход — POST /api/method/logout с CSRF, как любой вызов кабинета. Страницу
+ * меняем через replace: «назад» не должен возвращать в кабинет без сессии.
+ */
+function LogoutButton({ row = false }: { row?: boolean }) {
+  const [pending, setPending] = useState(false);
+
+  async function logout() {
+    setPending(true);
+    try {
+      await call("logout");
+      window.location.replace("/login");
+    } catch (e) {
+      setPending(false);
+      toast.error("Не удалось выйти", { description: e instanceof Error ? e.message : undefined });
+    }
+  }
+
+  // row — строка в «Ещё» в том же ритме, что пункты разделов над ней;
+  // иначе — пункт бокового меню под навигацией.
+  return row ? (
+    <Button
+      variant="ghost"
+      className="h-auto w-full justify-start gap-3 rounded-xl px-4 py-3 text-base font-medium hover:bg-muted/60"
+      disabled={pending}
+      onClick={logout}
+    >
+      <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <LogOut className="size-[18px]" />
+      </span>
+      Выйти
+    </Button>
+  ) : (
+    <Button
+      variant="ghost"
+      className="h-9 w-full justify-start gap-3 px-3 font-normal text-sidebar-foreground/80"
+      disabled={pending}
+      onClick={logout}
+    >
+      <LogOut />
+      Выйти
+    </Button>
   );
 }
 
@@ -182,6 +235,9 @@ export function MorePage() {
             <div className="truncate text-xs text-muted-foreground">{window.habibi.user}</div>
           </div>
           <ThemeToggle />
+        </div>
+        <div className={surface}>
+          <LogoutButton row />
         </div>
       </div>
     </Page>

@@ -28,3 +28,23 @@ role_home_page = {
 	"Habibi Owner": "ui",
 	"Habibi Staff": "ui",
 }
+
+# Кабинет — отдельное приложение на экране приложений Frappe. По нему же
+# get_default_path() ведёт вошедшего с User.default_app = habibi_ui в /ui/c
+# (frappe/apps.py:get_route), а default_app ролям кабинета ставит хук ниже.
+add_to_apps_screen = [
+	{
+		"name": app_name,
+		"logo": "/assets/habibi_ui/images/cabinet.svg",
+		"title": "Кабинет",
+		"route": "/ui/c",
+		"has_permission": "habibi_ui.cabinet.access.has_app_permission",
+	}
+]
+
+doc_events = {
+	"User": {"validate": "habibi_ui.cabinet.access.set_default_app"},
+}
+
+# Desk для ролей кабинета закрыт: страница Desk уводит их в кабинет.
+update_website_context = ["habibi_ui.cabinet.access.send_desk_to_cabinet"]
