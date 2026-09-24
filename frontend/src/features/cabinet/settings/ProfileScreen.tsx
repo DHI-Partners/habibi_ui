@@ -1,4 +1,4 @@
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -20,6 +20,10 @@ const CORE: [keyof Profile, string, string][] = [
   ["address", "Адрес", "Улица, дом — откуда самовывоз"],
   ["phone", "Телефон для клиентов", "+7 700 000 00 00"],
 ];
+// Пределы — те же, что проверяет сервер (habibi_ai.profile: DESCRIPTION_MAX и
+// соседи); здесь они только для счётчиков, отказ всё равно придёт с сервера.
+const LIMITS = { description: 1000, title: 80, text: 1500, rules: 20 };
+
 const TONES: Record<string, string> = {
   friendly: "Дружелюбный",
   neutral: "Нейтральный",
@@ -66,6 +70,7 @@ export function ProfileScreen({ section }: { section: CabinetSection }) {
     );
   }
 
+  const full = p.rules.length >= LIMITS.rules;
   const addRule = () => {
     setP({ ...p, rules: [...p.rules, { title: newTitle.trim(), hint: "", text: "" }] });
     setNewTitle("");
@@ -131,8 +136,10 @@ export function ProfileScreen({ section }: { section: CabinetSection }) {
                 id="p-description"
                 rows={3}
                 value={p.description}
+                aria-describedby="p-description-count"
                 onChange={(e) => setP({ ...p, description: e.target.value })}
               />
+              <Counter id="p-description-count" value={p.description} max={LIMITS.description} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="p-tone" className="text-[13px] text-muted-foreground">
@@ -161,24 +168,47 @@ export function ProfileScreen({ section }: { section: CabinetSection }) {
               <p className="text-sm text-muted-foreground">Добавьте, о чём часто спрашивают: оплата, парковка, аллергены.</p>
             )}
             {p.rules.map((r, i) => (
+              // Блок пресета (с подсказкой) не удаляется — пустой бот просто
+              // не увидит; свой блок владелец убирает сам. Удаление — как любая
+              // правка формы: до «Сохранить» ничего не потеряно.
               <div key={`${r.title}-${i}`} className="space-y-2">
-                <Label htmlFor={`rule-${i}`} className="text-sm font-medium">
-                  {r.title}
-                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor={`rule-${i}`} className="text-sm font-medium break-words">
+                      {r.title}
+                    </Label>
+                    {r.hint && <p className="mt-0.5 text-[13px] text-muted-foreground">{r.hint}</p>}
+                  </div>
+                  {!r.hint && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Удалить блок «${r.title}»`}
+                      title="Удалить блок"
+                      onClick={() => setP({ ...p, rules: p.rules.filter((_, j) => j !== i) })}
+                      className="-mr-2 size-11 shrink-0 text-muted-foreground hover:text-destructive md:size-8"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
                 <Textarea
                   id={`rule-${i}`}
                   rows={3}
-                  placeholder={r.hint}
+                  placeholder={r.hint ? "Оставьте пустым, если не нужно" : "Что ответить клиенту"}
                   value={r.text}
+                  aria-describedby={`rule-${i}-count`}
                   onChange={(e) => setP({ ...p, rules: p.rules.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })}
                 />
+                <Counter id={`rule-${i}-count`} value={r.text} max={LIMITS.text} />
               </div>
             ))}
             <form
               className="flex gap-2 border-t pt-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (newTitle.trim()) addRule();
+                if (newTitle.trim() && !full) addRule();
               }}
             >
               <Input
@@ -186,16 +216,42 @@ export function ProfileScreen({ section }: { section: CabinetSection }) {
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Свой блок, например «Парковка»"
                 aria-label="Название нового блока"
+                maxLength={LIMITS.title}
+                disabled={full}
                 className="h-10"
               />
-              <Button type="submit" variant="outline" disabled={!newTitle.trim()} className="h-10 shrink-0">
+              <Button type="submit" variant="outline" disabled={!newTitle.trim() || full} className="h-10 shrink-0">
                 <Plus />
                 Добавить
               </Button>
             </form>
+            {full && (
+              <p className="-mt-2 text-[13px] text-muted-foreground">
+                Блоков уже {LIMITS.rules} — удалите ненужный, чтобы добавить новый.
+              </p>
+            )}
           </div>
         </section>
       </div>
     </Page>
+  );
+}
+
+/**
+ * Счётчик под полем — только когда до предела осталось меньше 20%: раньше он
+ * лишь отвлекает. За пределом — красный: сервер такое не сохранит.
+ */
+function Counter({ id, value, max }: { id: string; value: string; max: number }) {
+  const length = value.length;
+  if (length < max * 0.8) return null;
+  const over = length > max;
+  return (
+    <p
+      id={id}
+      aria-live="polite"
+      className={cn("text-right text-xs tabular-nums", over ? "font-medium text-destructive" : "text-muted-foreground")}
+    >
+      {over ? `Слишком длинно: ${length} из ${max}` : `${length} из ${max}`}
+    </p>
   );
 }
