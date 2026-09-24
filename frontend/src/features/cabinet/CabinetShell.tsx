@@ -125,27 +125,25 @@ function LogoutButton({ row = false }: { row?: boolean }) {
   }
 
   // row — строка в «Ещё» в том же ритме, что пункты разделов над ней;
-  // иначе — пункт бокового меню под навигацией.
-  return row ? (
+  // иначе — пункт бокового меню под навигацией. Разница только в оформлении.
+  return (
     <Button
       variant="ghost"
-      className="h-auto w-full justify-start gap-3 rounded-xl px-4 py-3 text-base font-medium hover:bg-muted/60"
+      className={
+        row
+          ? "h-auto w-full justify-start gap-3 rounded-xl px-4 py-3 text-base font-medium hover:bg-muted/60"
+          : "h-9 w-full justify-start gap-3 px-3 font-normal text-sidebar-foreground/80"
+      }
       disabled={pending}
       onClick={logout}
     >
-      <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <LogOut className="size-[18px]" />
-      </span>
-      Выйти
-    </Button>
-  ) : (
-    <Button
-      variant="ghost"
-      className="h-9 w-full justify-start gap-3 px-3 font-normal text-sidebar-foreground/80"
-      disabled={pending}
-      onClick={logout}
-    >
-      <LogOut />
+      {row ? (
+        <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <LogOut className="size-[18px]" />
+        </span>
+      ) : (
+        <LogOut />
+      )}
       Выйти
     </Button>
   );

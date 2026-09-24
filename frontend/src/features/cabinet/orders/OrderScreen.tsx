@@ -331,14 +331,15 @@ function StepSheet(props: StepProps) {
         {props.canNotify && (
           <div className="space-y-2">
             <div className="text-[13px] font-medium text-muted-foreground">Причина — попадёт в сообщение клиенту</div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2 md:gap-1.5">
               {REASONS.map((r) => (
                 <button
                   key={r}
                   type="button"
+                  aria-pressed={props.reason === r}
                   onClick={() => props.onReason(props.reason === r ? "" : r)}
                   className={cn(
-                    "h-8 rounded-full border px-3 text-[13px] transition-colors",
+                    "h-11 rounded-full border px-3.5 text-sm transition-colors md:h-8 md:px-3 md:text-[13px]",
                     props.reason === r ? "border-primary bg-primary/10 text-primary" : "bg-background hover:bg-muted",
                   )}
                 >
