@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 
 import type { CabinetSection } from "../../shared/types/api";
 import { ChatsScreen } from "./chats/ChatsScreen";
+import { CourierScreen } from "./fulfilment/CourierScreen";
 import { KitchenScreen } from "./fulfilment/KitchenScreen";
 import { HomeScreen } from "./home/HomeScreen";
 import { HoursScreen } from "./settings/HoursScreen";
@@ -18,4 +19,5 @@ export const SCREENS: Record<string, ComponentType<{ section: CabinetSection }>>
   profile: ProfileScreen,
   telegram: TelegramScreen,
   kitchen: KitchenScreen,
+  courier: CourierScreen,
 };
