@@ -106,6 +106,24 @@ class TestCabinetApi(IntegrationTestCase):
 		with patch("habibi_ui.cabinet.registry.adapter", return_value=adapter):
 			cabinet.save("todo", {"description": "с адаптером", "fake_label": "x"})
 
+	def test_ключ_документа_задаётся_при_создании_и_не_меняется_при_правке(self):
+		"""Название зоны доставки — имя записи (autoname field:…): форма принимает его при создании, правка не переименовывает."""
+		settings = frappe.get_single("Cabinet Settings")
+		settings.append(
+			"sections",
+			{**SECTION, "key": "roles", "ref_doctype": "Item Group", "list_fields": "item_group_name", "form_fields": "item_group_name\nparent_item_group", "base_filters": None},
+		)
+		settings.save()
+		created = cabinet.save("roles", {"item_group_name": "Cabinet Test Group", "parent_item_group": "All Item Groups"})
+		self.assertEqual(created["name"], "Cabinet Test Group")
+		cabinet.save(
+			"roles", {"item_group_name": "Другое Имя", "parent_item_group": "All Item Groups"}, name="Cabinet Test Group"
+		)
+		self.assertTrue(frappe.db.exists("Item Group", "Cabinet Test Group"))
+		self.assertFalse(frappe.db.exists("Item Group", "Другое Имя"))
+		# и само поле не разъезжается с именем записи
+		self.assertEqual(frappe.db.get_value("Item Group", "Cabinet Test Group", "item_group_name"), "Cabinet Test Group")
+
 	def test_save_без_права_создавать_запрещён(self):
 		settings = frappe.get_single("Cabinet Settings")
 		settings.sections[0].can_create = 0
