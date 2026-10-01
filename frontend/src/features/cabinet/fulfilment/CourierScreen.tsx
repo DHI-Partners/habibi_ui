@@ -1,11 +1,11 @@
-import { Bike, MapPin, PackageCheck, Phone } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { Check, Clock, MapPin, PackageCheck, Phone, Truck } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { cn } from "../../../shared/lib/utils";
 import { Button, buttonVariants } from "../../../shared/ui/button";
-import { ageLabel, plural, shortNo } from "../format";
-import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, WarningNote } from "../ui";
+import { durationLabel, plural, shortNo } from "../format";
+import { darkButton, EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, UnderlineTabs, WarningNote } from "../ui";
 import { type CourierOrder, useCourierFree, useCourierMine, useMarkDelivered, useTake } from "./api";
 
 type Tab = "mine" | "free";
@@ -46,142 +46,126 @@ export function CourierScreen() {
 
   return (
     <Page title="Доставки" width="narrow">
-      <div role="tablist" className="mb-3 flex rounded-xl bg-muted p-1">
-        <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
-          Мои{mine.isSuccess ? ` · ${mine.data.length}` : ""}
-        </TabButton>
-        <TabButton active={tab === "free"} onClick={() => setTab("free")}>
-          Свободные{free.isSuccess ? ` · ${free.data.length}` : ""}
-        </TabButton>
-      </div>
-
-      {query.isRefetchError && (
-        <div className="mb-3">
-          <WarningNote>Нет связи — показаны последние данные. Попробуем снова.</WarningNote>
-        </div>
-      )}
-      {query.isPending ? (
-        <ListSkeleton rows={2} />
-      ) : query.data === undefined ? (
-        <ErrorNote title="Список не загрузился">{query.error?.message}</ErrorNote>
-      ) : orders.length === 0 ? (
-        <EmptyState
-          icon={tab === "mine" ? PackageCheck : Bike}
-          text={tab === "mine" ? "У вас нет заказов в пути" : "Свободных заказов нет"}
+      <div className="space-y-3">
+        <UnderlineTabs
+          label="Заказы курьера"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: "mine", label: "Мои", count: mine.data?.length },
+            { value: "free", label: "Свободные", count: free.data?.length },
+          ]}
         />
-      ) : (
-        <div className="space-y-3">
-          {orders.map((order) =>
-            tab === "mine" ? (
-              <MineCard
-                key={order.name}
-                order={order}
-                pending={delivered.isPending && delivered.variables === order.name}
-                onDelivered={() => onDelivered(order)}
-              />
-            ) : (
-              <FreeCard
-                key={order.name}
-                order={order}
-                pending={take.isPending && take.variables === order.name}
-                onTake={() => onTake(order)}
-              />
-            ),
-          )}
-        </div>
-      )}
+
+        {query.isRefetchError && <WarningNote>Нет связи — показаны последние данные. Попробуем снова.</WarningNote>}
+        {query.isPending ? (
+          <ListSkeleton rows={2} />
+        ) : query.data === undefined ? (
+          <ErrorNote title="Список не загрузился">{query.error?.message}</ErrorNote>
+        ) : orders.length === 0 ? (
+          <EmptyState
+            icon={tab === "mine" ? PackageCheck : Truck}
+            text={tab === "mine" ? "У вас нет заказов в пути" : "Свободных заказов нет"}
+          />
+        ) : (
+          <div className="space-y-2.5">
+            {orders.map((order) =>
+              tab === "mine" ? (
+                <MineCard
+                  key={order.name}
+                  order={order}
+                  pending={delivered.isPending && delivered.variables === order.name}
+                  onDelivered={() => onDelivered(order)}
+                />
+              ) : (
+                <FreeCard
+                  key={order.name}
+                  order={order}
+                  pending={take.isPending && take.variables === order.name}
+                  onTake={() => onTake(order)}
+                />
+              ),
+            )}
+          </div>
+        )}
+      </div>
     </Page>
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function Header({ order, badge }: { order: CourierOrder; badge: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={cn(
-        "h-10 flex-1 rounded-lg text-sm font-semibold transition-colors",
-        active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <header className="flex items-center gap-2">
+      <span className="text-[15px] font-bold tabular-nums">{shortNo(order.name)}</span>
+      {badge}
+      <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground tabular-nums">
+        <Clock className="size-3.5" aria-hidden />
+        {durationLabel(order.age)}
+      </span>
+    </header>
   );
 }
 
-function Where({ order }: { order: CourierOrder }) {
+function Where({ order, extra }: { order: CourierOrder; extra?: string }) {
+  const details = [order.address ?? "Адрес не указан", order.zone, extra].filter(Boolean).join(" · ");
   return (
-    <div className="mt-2 text-sm">
-      {order.customer_name && <div className="text-base font-semibold">{order.customer_name}</div>}
-      <div className="text-muted-foreground">{order.address ?? "Адрес не указан"}</div>
-      {order.zone && <div className="text-muted-foreground">Зона: {order.zone}</div>}
+    <div>
+      {order.customer_name && <div className="text-[14.5px] leading-tight font-semibold">{order.customer_name}</div>}
+      <div className="text-[12.5px] leading-snug text-muted-foreground">{details}</div>
     </div>
   );
 }
+
+/** Квадратная кнопка-иконка 34 px: звонок и маршрут — второстепенные, место отдано главному действию. */
+const iconButton = cn(buttonVariants({ variant: "outline" }), "size-[34px] shrink-0 p-0");
 
 function MineCard({ order, pending, onDelivered }: { order: CourierOrder; pending: boolean; onDelivered: () => void }) {
   return (
-    <div className={cn(surface, "p-4")}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-base font-bold">{shortNo(order.name)}</div>
-        <StatusBadge tone="progress">В пути</StatusBadge>
-      </div>
-      <Where order={order} />
-      <ul className="mt-2 space-y-0.5 text-sm">
-        {order.items?.map((item, i) => (
-          <li key={i} className="flex gap-2">
-            <b className="min-w-8 tabular-nums text-muted-foreground">{item.qty}×</b>
-            <span>{item.item_name}</span>
-          </li>
-        ))}
-      </ul>
-      {(order.phone || order.address) && (
-        <div className="mt-3 flex gap-2">
+    <article className={cn(surface, "rounded-[10px]")}>
+      <div className="flex flex-col gap-2 p-3">
+        <Header order={order} badge={<StatusBadge tone="progress">В пути</StatusBadge>} />
+        <Where order={order} />
+        <ul>
+          {order.items?.map((item, i) => (
+            <li key={i} className="flex items-baseline gap-2.5 py-[3px] text-sm leading-snug">
+              <b className="min-w-6 tabular-nums">{item.qty}×</b>
+              <span>{item.item_name}</span>
+            </li>
+          ))}
+        </ul>
+        <footer className="flex items-center gap-2">
           {order.phone && (
-            <a href={telLink(order.phone)} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 flex-1")}>
-              <Phone /> Позвонить
+            <a href={telLink(order.phone)} className={iconButton} aria-label="Позвонить клиенту" title="Позвонить">
+              <Phone />
             </a>
           )}
           {order.address && (
-            <a
-              href={mapLink(order.address)}
-              target="_blank"
-              rel="noreferrer"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 flex-1")}
-            >
-              <MapPin /> Карта
+            <a href={mapLink(order.address)} target="_blank" rel="noreferrer" className={iconButton} aria-label="Маршрут" title="Маршрут">
+              <MapPin />
             </a>
           )}
-        </div>
-      )}
-      <Button className="mt-3 h-12 w-full text-base font-semibold" disabled={pending} onClick={onDelivered}>
-        Доставлено
-      </Button>
-    </div>
+          <Button className={cn("h-[34px] flex-1 gap-1.5 px-3.5 text-[13px] font-medium", darkButton)} disabled={pending} onClick={onDelivered}>
+            <Check /> Доставлено
+          </Button>
+        </footer>
+      </div>
+    </article>
   );
 }
 
 function FreeCard({ order, pending, onTake }: { order: CourierOrder; pending: boolean; onTake: () => void }) {
   return (
-    <div className={cn(surface, "p-4")}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-base font-bold">
-          {shortNo(order.name)}{" "}
-          <span className="text-sm font-normal text-muted-foreground">
-            · готов {ageLabel(order.age).replace(" назад", "")}
-          </span>
-        </div>
-        <StatusBadge tone="ok">Готов</StatusBadge>
+    <article className={cn(surface, "rounded-[10px]")}>
+      <div className="flex flex-col gap-2 p-3">
+        <Header order={order} badge={<StatusBadge tone="ok">Готов</StatusBadge>} />
+        <Where order={order} extra={`${order.items_count} ${plural(order.items_count, ["позиция", "позиции", "позиций"])}`} />
+        <footer className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Готов к выдаче</span>
+          <Button className="ml-auto h-[34px] gap-1.5 px-3.5 text-[13px] font-medium" disabled={pending} onClick={onTake}>
+            <Truck /> Взять
+          </Button>
+        </footer>
       </div>
-      <Where order={order} />
-      <div className="mt-1 text-sm text-muted-foreground">
-        {order.items_count} {plural(order.items_count, ["позиция", "позиции", "позиций"])}
-      </div>
-      <Button className="mt-3 h-12 w-full text-base font-semibold" disabled={pending} onClick={onTake}>
-        Взять заказ
-      </Button>
-    </div>
+    </article>
   );
 }

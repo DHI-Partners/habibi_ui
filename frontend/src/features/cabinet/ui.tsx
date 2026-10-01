@@ -111,11 +111,71 @@ export function StatusBadge({
   children: ReactNode;
   className?: string;
 }) {
+  // Точка и слово, как в Linear и Stripe: статус читается без заливки на пол-строки
   return (
-    <Badge className={cn("h-6 gap-1 rounded-full px-2.5 text-xs font-semibold", Icon && "pl-2", TONES[tone], className)}>
-      {Icon && <Icon className="size-3.5" aria-hidden />}
+    <Badge className={cn("h-6 gap-1.5 rounded-md px-2 text-xs font-semibold", TONES[tone], className)}>
+      {Icon ? <Icon className="size-3.5" aria-hidden /> : <span className="size-1.5 rounded-full bg-current opacity-80" aria-hidden />}
       {children}
     </Badge>
+  );
+}
+
+/** Основное действие экрана смены («Готово», «Доставлено»): тёмная нейтральная кнопка вместо яркой синей. */
+export const darkButton = "bg-foreground text-background hover:bg-foreground/85";
+
+export type TabItem<T extends string> = { value: T; label: ReactNode; count?: number; icon?: LucideIcon };
+
+/**
+ * Вкладки с подчёркиванием — для переключения между срезами одного списка
+ * (все / доставка / самовывоз; статусы заказов). Не кнопки-таблетки: активная
+ * вкладка отмечена линией и тёмным счётчиком. Не помещаются — прокручиваются.
+ */
+export function UnderlineTabs<T extends string>({
+  items,
+  value,
+  onChange,
+  label,
+  className,
+}: {
+  items: TabItem<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div role="tablist" aria-label={label} className={cn("flex gap-5 overflow-x-auto border-b [scrollbar-width:none]", className)}>
+      {items.map((t) => {
+        const active = t.value === value;
+        const Icon = t.icon;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(t.value)}
+            className={cn(
+              "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 pt-2 pb-2.5 text-sm font-medium whitespace-nowrap transition-colors",
+              active ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {Icon && <Icon className="size-4" aria-hidden />}
+            {t.label}
+            {t.count !== undefined && (
+              <span
+                className={cn(
+                  "rounded-md px-1.5 text-xs leading-[18px] tabular-nums",
+                  active ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+                )}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

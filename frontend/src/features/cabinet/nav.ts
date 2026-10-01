@@ -1,6 +1,7 @@
 import {
   Bike,
   Building2,
+  ChefHat,
   Clock,
   House,
   LayoutGrid,
@@ -10,6 +11,7 @@ import {
   MessageCircle,
   Send,
   ShoppingBag,
+  Truck,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -25,6 +27,8 @@ export const TABS = 3;
 // незнакомое имя получает нейтральную иконку.
 const ICONS: Record<string, LucideIcon> = {
   bike: Bike,
+  truck: Truck,
+  "chef-hat": ChefHat,
   home: House,
   house: House,
   receipt: ShoppingBag,

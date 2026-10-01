@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { PAGE_SIZE, type Row, useFacets, useSectionInfinite, useSectionPage } from "./api";
 import { formatValue } from "./FieldInput";
 import { docstatusBadge, orderBadge, type StateKind, shortNo, stateBadge } from "./format";
-import { fulfilmentIcon, stateIcon } from "./icons";
+import { fulfilmentIcon } from "./icons";
 import { buildQuery, INITIAL_STATE, isDirty, type ListState, nextOrder } from "./listState";
 import { ListToolbar } from "./ListToolbar";
 import { sectionIcon, useSectionBack } from "./nav";
@@ -45,11 +45,7 @@ function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
     const status = value as { state: string; kind: StateKind } | null | undefined;
     if (!status) return null;
     const [label, tone] = orderBadge(status.state, status.kind);
-    return (
-      <StatusBadge tone={tone} icon={stateIcon(status.state)}>
-        {label}
-      </StatusBadge>
-    );
+    return <StatusBadge tone={tone}>{label}</StatusBadge>;
   }
   if (field.fieldname === "workflow_state") {
     if (!value) return null;

@@ -1,5 +1,4 @@
 import {
-  Bike,
   CheckCheck,
   ChefHat,
   CircleCheck,
@@ -7,7 +6,8 @@ import {
   CircleX,
   type LucideIcon,
   PackageCheck,
-  ShoppingBag,
+  Store,
+  Truck,
 } from "lucide-react";
 
 // Иконки статусов и способов получения: одна и та же у чипа, бейджа и карточки,
@@ -22,7 +22,7 @@ const STATE_ICONS: Record<string, LucideIcon> = {
   accepted: CircleCheck,
   "In Kitchen": ChefHat,
   Ready: PackageCheck,
-  "Out for Delivery": Bike,
+  "Out for Delivery": Truck,
   Delivered: CheckCheck,
   Cancelled: CircleX,
   cancelled: CircleX,
@@ -32,7 +32,7 @@ const STATE_ICONS: Record<string, LucideIcon> = {
 export const stateIcon = (state: string | null | undefined): LucideIcon | undefined =>
   state ? STATE_ICONS[state] : undefined;
 
-const FULFILMENT_ICONS: Record<string, LucideIcon> = { Delivery: Bike, Pickup: ShoppingBag };
+const FULFILMENT_ICONS: Record<string, LucideIcon> = { Delivery: Truck, Pickup: Store };
 
 /** Иконка способа получения («Delivery»/«Pickup»). */
 export const fulfilmentIcon = (value: unknown): LucideIcon | undefined => FULFILMENT_ICONS[String(value)];

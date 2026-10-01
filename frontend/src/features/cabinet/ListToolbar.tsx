@@ -20,7 +20,7 @@ import {
   SORTS,
   selectFilters,
 } from "./listState";
-import { ResponsiveModal } from "./ui";
+import { ResponsiveModal, UnderlineTabs } from "./ui";
 
 type Props = {
   section: CabinetSection;
@@ -70,23 +70,16 @@ function SearchField({ section, value, onChange }: { section: CabinetSection; va
   );
 }
 
-function FacetChips({ facets, value, onChange }: { facets: Facet[]; value: string; onChange: (key: string) => void }) {
+function FacetTabs({ facets, value, onChange }: { facets: Facet[]; value: string; onChange: (key: string) => void }) {
   if (facets.length <= 1) return null;
   return (
-    <div role="group" aria-label="Быстрые фильтры" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-      {facets.map((f) => {
-        const Icon = stateIcon(f.key);
-        return (
-        <Chip key={f.key} active={value === f.key} onClick={() => onChange(f.key)}>
-          {Icon && <Icon className="size-3.5" aria-hidden />}
-          {f.label}
-          <span className={cn("text-xs font-semibold tabular-nums", value === f.key ? "text-primary-foreground/80" : "text-muted-foreground")}>
-            {f.count}
-          </span>
-        </Chip>
-        );
-      })}
-    </div>
+    <UnderlineTabs
+      label="Быстрые фильтры"
+      value={value}
+      onChange={onChange}
+      className="-mx-4 px-4 md:mx-0 md:px-0"
+      items={facets.map((f) => ({ value: f.key, label: f.label, count: f.count, icon: stateIcon(f.key) }))}
+    />
   );
 }
 
@@ -289,7 +282,7 @@ export function ListToolbar(props: Props) {
   return (
     <div className="space-y-3">
       <SearchField section={section} value={state.search} onChange={(search) => onChange({ search })} />
-      <FacetChips facets={facets} value={state.facet} onChange={(facet) => onChange({ facet })} />
+      <FacetTabs facets={facets} value={state.facet} onChange={(facet) => onChange({ facet })} />
       {desktop ? <DesktopFilters {...props} /> : <MobileBar {...props} />}
     </div>
   );

@@ -8,6 +8,8 @@ export type KitchenOrder = {
   name: string;
   age: number;
   notes: string | null;
+  /** «Delivery» / «Pickup»; нет поля на сайте — null */
+  fulfilment: string | null;
   items: KitchenItem[];
 };
 

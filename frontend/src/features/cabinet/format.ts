@@ -11,6 +11,15 @@ export function plural(n: number, forms: [string, string, string]): string {
   return forms[2];
 }
 
+/** Длительность коротко, без «назад»: «3 мин», «1 ч 5 мин», «35 дн» — таймер на карточке. */
+export function durationLabel(minutes: number): string {
+  if (minutes < 1) return "< 1 мин";
+  if (minutes < 60) return `${minutes} мин`;
+  if (minutes >= 24 * 60) return `${Math.floor(minutes / (24 * 60))} дн`;
+  const rest = minutes % 60;
+  return `${Math.floor(minutes / 60)} ч${rest ? ` ${rest} мин` : ""}`;
+}
+
 /** «только что», «12 мин назад», «1 ч 5 мин назад», «3 дн назад» — возраст заказа на кухне и в доставке. */
 export function ageLabel(minutes: number): string {
   if (minutes < 1) return "только что";
