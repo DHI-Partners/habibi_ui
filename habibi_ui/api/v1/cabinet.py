@@ -15,7 +15,9 @@ from frappe.model import default_fields
 from habibi_ui.cabinet import registry
 from habibi_ui.cabinet.fields import merge_filters, parse_fields, split_values
 
-CABINET_ROLES = ("Habibi Owner", "Habibi Staff")
+STAFF_ROLES = ("Habibi Owner", "Habibi Staff")
+FLOOR_ROLES = ("Habibi Kitchen", "Habibi Courier")
+CABINET_ROLES = STAFF_ROLES + FLOOR_ROLES
 PAGE_LIMIT = 100
 
 # Служебные поля Frappe (frappe.model.default_fields) не имеют DocField в мете
@@ -57,7 +59,9 @@ def _visible(row, roles, features):
 	wanted = {r.strip() for r in (row.roles or "").splitlines() if r.strip()}
 	if wanted:
 		return bool(wanted & roles) or "System Manager" in roles
-	return bool(set(CABINET_ROLES) & roles) or "System Manager" in roles
+	# Пустое roles — владелец и сотрудник, но не кухня и курьер: у тех
+	# разделы заводятся явно, иначе они увидели бы заказы, чаты и клиентов.
+	return bool(set(STAFF_ROLES) & roles) or "System Manager" in roles
 
 
 def _describe(meta, specs):

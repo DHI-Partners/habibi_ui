@@ -16,9 +16,15 @@ website_route_rules = [
 # Роль-переключатель приезжает фикстурой: без неё role_home_page ниже ссылается
 # на несуществующую роль, и включить интерфейс нечем. Habibi Owner и Habibi
 # Staff — роли кабинета: их обладатель без System Manager попадает в кабинет,
-# а не в лаунчер (см. _home() в api/v1/session.py).
+# а не в лаунчер (см. _home() в api/v1/session.py). Habibi Kitchen и Habibi
+# Courier — роли смены: у них свои разделы в кабинете.
 fixtures = [
-	{"dt": "Role", "filters": [["name", "in", ["Habibi UI", "Habibi Owner", "Habibi Staff"]]]},
+	{
+		"dt": "Role",
+		"filters": [
+			["name", "in", ["Habibi UI", "Habibi Owner", "Habibi Staff", "Habibi Kitchen", "Habibi Courier"]]
+		],
+	},
 ]
 
 # Кому выдана роль — тот при входе попадает в новый интерфейс, остальные в Desk.
@@ -27,6 +33,8 @@ role_home_page = {
 	"Habibi UI": "ui",
 	"Habibi Owner": "ui",
 	"Habibi Staff": "ui",
+	"Habibi Kitchen": "ui",
+	"Habibi Courier": "ui",
 }
 
 # Кабинет — отдельное приложение на экране приложений Frappe. По нему же
