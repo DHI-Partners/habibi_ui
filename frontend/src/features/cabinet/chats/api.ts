@@ -10,6 +10,9 @@ export type ChatItem = {
   paused: boolean;
   /** Чат ведёт личный аккаунт — переписку можно стереть и в самом Telegram */
   via_account: boolean;
+  /** Числовой Telegram ID собеседника и его буквенное имя (без @) */
+  telegram_id: string | null;
+  username: string | null;
   customer: string | null;
 };
 export type ChatMessage = { name: string; text: string; at: string; author: "client" | "bot" | "staff" };
