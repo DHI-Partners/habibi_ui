@@ -54,7 +54,7 @@ export function Page({ title, subtitle, back, backMobileOnly, actions, footer, w
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm md:static md:border-0 md:bg-transparent md:backdrop-blur-none">
-        <div className={cn("mx-auto flex min-h-14 w-full items-center gap-2 px-4 py-2 md:gap-3 md:px-8 md:pt-8 md:pb-1", max)}>
+        <div className={cn("mx-auto md:mx-0 flex min-h-14 w-full items-center gap-2 px-4 py-2 md:gap-3 md:px-8 md:pt-8 md:pb-1", max)}>
           {back && (
             <Link
               to={back}
@@ -72,11 +72,11 @@ export function Page({ title, subtitle, back, backMobileOnly, actions, footer, w
         </div>
       </header>
       {/* На десктопе кнопки идут сразу под содержимым, а не у нижнего края монитора. */}
-      <div className={cn("mx-auto w-full flex-1 px-4 pt-4 pb-6 md:flex-none md:px-8 md:pt-5 md:pb-6", max)}>{children}</div>
+      <div className={cn("mx-auto md:mx-0 w-full flex-1 px-4 pt-4 pb-6 md:flex-none md:px-8 md:pt-5 md:pb-6", max)}>{children}</div>
       {footer && (
         <div className="sticky bottom-0 z-20 border-t bg-background px-4 pt-3 pb-[max(env(safe-area-inset-bottom),1rem)] md:static md:border-0 md:bg-transparent md:px-0 md:pt-0 md:pb-10">
           {/* Та же ширина и отступы, что у содержимого: кнопки ровно по правому краю карточек. */}
-          <div className={cn("mx-auto w-full md:flex md:justify-end md:px-8", max)}>{footer}</div>
+          <div className={cn("mx-auto md:mx-0 w-full md:flex md:justify-end md:px-8", max)}>{footer}</div>
         </div>
       )}
     </div>
