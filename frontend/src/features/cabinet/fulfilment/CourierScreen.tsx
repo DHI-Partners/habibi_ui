@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { cn } from "../../../shared/lib/utils";
 import { Button, buttonVariants } from "../../../shared/ui/button";
 import { durationLabel, plural, shortNo } from "../format";
+import { PaymentBadge } from "../PaymentBadge";
 import { darkButton, EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, UnderlineTabs, WarningNote } from "../ui";
 import { type CourierOrder, useCourierFree, useCourierMine, useMarkDelivered, useTake } from "./api";
 
@@ -134,6 +135,7 @@ function MineCard({ order, pending, onDelivered }: { order: CourierOrder; pendin
           ))}
         </ul>
         <footer className="flex items-center gap-2">
+          <PaymentBadge value={order.payment} />
           {order.phone && (
             <a href={telLink(order.phone)} className={iconButton} aria-label="Позвонить клиенту" title="Позвонить">
               <Phone />
@@ -160,7 +162,7 @@ function FreeCard({ order, pending, onTake }: { order: CourierOrder; pending: bo
         <Header order={order} badge={<StatusBadge tone="ok">Готов</StatusBadge>} />
         <Where order={order} extra={`${order.items_count} ${plural(order.items_count, ["позиция", "позиции", "позиций"])}`} />
         <footer className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Готов к выдаче</span>
+          <PaymentBadge value={order.payment} />
           <Button className="ml-auto h-[34px] gap-1.5 px-3.5 text-[13px] font-medium" disabled={pending} onClick={onTake}>
             <Truck /> Взять
           </Button>

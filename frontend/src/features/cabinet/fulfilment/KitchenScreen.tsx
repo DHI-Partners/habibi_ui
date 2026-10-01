@@ -7,6 +7,7 @@ import { Button } from "../../../shared/ui/button";
 import { optionLabel } from "../FieldInput";
 import { durationLabel, shortNo } from "../format";
 import { fulfilmentIcon } from "../icons";
+import { PaymentBadge } from "../PaymentBadge";
 import { darkButton, EmptyState, ErrorNote, ListSkeleton, Page, surface, UnderlineTabs, WarningNote } from "../ui";
 import { type KitchenOrder, useKitchenQueue, useMarkReady } from "./api";
 import { BORDER, LATE_MIN, TIMER, urgency, WARN_MIN } from "./timing";
@@ -198,6 +199,7 @@ function KitchenCard({
         )}
         <footer className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground tabular-nums">{pieces(order)} шт.</span>
+          <PaymentBadge value={order.payment} />
           <Button className={cn("ml-auto h-[34px] gap-1.5 px-3.5 text-[13px] font-medium", darkButton)} disabled={pending} onClick={onReady}>
             <Check /> Готово
           </Button>

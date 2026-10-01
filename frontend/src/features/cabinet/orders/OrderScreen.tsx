@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "../../../shared/ui/button";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { Textarea } from "../../../shared/ui/textarea";
 import { clock, dateLabel, fulfilmentLabel, money, orderBadge, parseSiteDate, type Tone } from "../format";
+import { PaymentBadge } from "../PaymentBadge";
 import { EmptyState, ErrorNote, InitialAvatar, Page, ResponsiveModal, StatusBadge, surface, WarningNote } from "../ui";
 import {
   DISCARD_ACTION,
@@ -19,6 +20,7 @@ import {
   useNotify,
   useOrderActions,
   useOrderDetails,
+  useSetPayment,
 } from "./api";
 
 const LABELS: Record<string, string> = { accept: "Принять", reject: "Отклонить" };
@@ -168,6 +170,7 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
         {noRights && <WarningNote>Нет прав на действия с заказом — обратитесь к администратору</WarningNote>}
 
         <CustomerCard data={data} />
+        <PaymentRow data={data} />
         <Lines data={data} />
       </div>
 
@@ -407,5 +410,32 @@ function StepSheet(props: StepProps) {
     <ResponsiveModal open={open} onOpenChange={onOpenChange} title={heading} description={description}>
       {body}
     </ResponsiveModal>
+  );
+}
+
+/** Оплата — отдельный статус: менеджер отмечает вручную, готовка от него не зависит. */
+function PaymentRow({ data }: { data: OrderDetails }) {
+  const set = useSetPayment(data.name);
+  if (data.payment === null) return null;
+  const paid = data.payment === "Paid";
+  return (
+    <div className={cn(surface, "flex items-center gap-3 px-4 py-2.5")}>
+      <span className="text-sm text-muted-foreground">Оплата</span>
+      <PaymentBadge value={data.payment} />
+      <Button
+        variant="outline"
+        className="ml-auto h-8 px-3 text-[13px] font-medium"
+        disabled={set.isPending}
+        onClick={() =>
+          set.mutate(paid ? "Unpaid" : "Paid", {
+            onSuccess: () => toast.success(paid ? "Отметка об оплате снята" : "Заказ отмечен оплаченным"),
+            onError: (e) => toast.error(e.message),
+          })
+        }
+      >
+        {set.isPending && <Loader2 className="animate-spin" />}
+        {paid ? "Снять отметку" : "Отметить оплаченным"}
+      </Button>
+    </div>
   );
 }

@@ -10,6 +10,8 @@ export type KitchenOrder = {
   notes: string | null;
   /** «Delivery» / «Pickup»; нет поля на сайте — null */
   fulfilment: string | null;
+  /** «Paid» / «Unpaid»; null — на сайте нет поля оплаты */
+  payment: string | null;
   items: KitchenItem[];
 };
 
@@ -22,6 +24,7 @@ export type CourierOrder = {
   address: string | null;
   zone: string | null;
   items_count: number;
+  payment: string | null;
   phone?: string | null;
   items?: KitchenItem[];
 };

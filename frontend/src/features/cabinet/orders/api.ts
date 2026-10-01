@@ -25,6 +25,8 @@ export type OrderDetails = {
   zone: string | null;
   address: string | null;
   notes: string | null;
+  /** «Paid» / «Unpaid»; null — на сайте нет поля оплаты */
+  payment: string | null;
   items: { item_name: string; qty: number; rate: number; amount: number }[];
   delivery: { label: string; amount: number } | null;
   total: number;
@@ -76,5 +78,19 @@ export function useNotify(name: string) {
   return useMutation({
     mutationFn: ({ text }: { text: string }) =>
       call<{ sent: boolean; error: string | null }>("habibi_ai.cabinet.orders.notify", { name, text }),
+  });
+}
+
+/** Менеджер вручную отмечает заказ оплаченным или снимает отметку. */
+export function useSetPayment(name: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (status: "Paid" | "Unpaid") =>
+      call<{ payment: string }>("habibi_ai.cabinet.orders.set_payment", { name, status }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-details", name] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "fulfilment"] });
+    },
   });
 }

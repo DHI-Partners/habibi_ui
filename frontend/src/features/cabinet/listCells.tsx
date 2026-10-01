@@ -5,6 +5,7 @@ import type { Row } from "./api";
 import { formatValue } from "./FieldInput";
 import { docstatusBadge, orderBadge, type StateKind, shortNo, stateBadge } from "./format";
 import { fulfilmentIcon } from "./icons";
+import { PaymentBadge } from "./PaymentBadge";
 import { StatusBadge } from "./ui";
 
 // Ячейки списка и доски: как показывать значение поля раздела.
@@ -15,6 +16,7 @@ export const NUMERIC = new Set(["Currency", "Float", "Int"]);
 // человеческий статус документа — значение {state, kind}, рисуется бейджем
 // тем же правилом, что на экране заказа (orderBadge).
 export const STATUS = "Status";
+export const PAYMENT_FIELD = "custom_payment_status";
 
 /** Значение ячейки: статусы Frappe — бейджем, числа — с разрядами, флаг — бейджем с подписью. */
 export function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
@@ -34,6 +36,7 @@ export function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNo
     const [label, tone] = stateBadge(String(value));
     return <StatusBadge tone={tone}>{label}</StatusBadge>;
   }
+  if (field.fieldname === PAYMENT_FIELD) return <PaymentBadge value={value ? String(value) : "Unpaid"} />;
   if (field.fieldtype === "Check") {
     return value ? <StatusBadge tone="neutral">{field.label}</StatusBadge> : null;
   }
@@ -56,5 +59,9 @@ export function titleText(section: CabinetSection, f: CabinetField, row: Row): s
 }
 
 export const isBadge = (f: CabinetField) =>
-  f.fieldname === "docstatus" || f.fieldname === "workflow_state" || f.fieldtype === STATUS || f.fieldtype === "Check";
+  f.fieldname === "docstatus" ||
+  f.fieldname === "workflow_state" ||
+  f.fieldname === PAYMENT_FIELD ||
+  f.fieldtype === STATUS ||
+  f.fieldtype === "Check";
 
