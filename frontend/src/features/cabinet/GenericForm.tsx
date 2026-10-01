@@ -1,4 +1,4 @@
-import { FileQuestion, Loader2 } from "lucide-react";
+import { FileQuestion, Loader2, Trash2 } from "lucide-react";
 import { type ComponentType, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,10 +8,10 @@ import type { CabinetSection } from "../../shared/types/api";
 import { Button } from "../../shared/ui/button";
 import { Label } from "../../shared/ui/label";
 import { Skeleton } from "../../shared/ui/skeleton";
-import { useCabinetConfig, useSaveSectionDoc, useSectionDoc } from "./api";
+import { useCabinetConfig, useDeleteSectionDoc, useSaveSectionDoc, useSectionDoc } from "./api";
 import { FieldInput, formatValue, isInline } from "./FieldInput";
 import { OrderScreen } from "./orders/OrderScreen";
-import { EmptyState, ErrorNote, Page, surface } from "./ui";
+import { EmptyState, ErrorNote, Page, ResponsiveModal, surface } from "./ui";
 
 // Разделы, у которых вместо формы — свой экран документа (заказ: карточка
 // клиента, сумма, «Принять/Отклонить»). Поля заказа в кабинете не правятся —
@@ -169,6 +169,56 @@ function GenericForm({ section, name }: { section: CabinetSection; name: string 
           </dl>
         )}
       </form>
+      {name && section.can_delete && <DeleteRecord section={section} name={name} title={String(values[section.form_fields[0]?.fieldname] || name)} back={back} />}
     </Page>
+  );
+}
+
+/** Удаление записи раздела (позиция меню и т.п.) с подтверждением; сервер отказывает, если запись используется в заказах. */
+function DeleteRecord({ section, name, title, back }: { section: CabinetSection; name: string; title: string; back: string }) {
+  const del = useDeleteSectionDoc(section.key);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="pt-3">
+        <Button variant="ghost" className="h-9 gap-1.5 px-2 text-[13px] font-medium text-destructive hover:text-destructive" onClick={() => setOpen(true)}>
+          <Trash2 /> Удалить
+        </Button>
+      </div>
+      <ResponsiveModal
+        open={open}
+        onOpenChange={setOpen}
+        title={`Удалить «${title}»?`}
+        description="Запись исчезнет из раздела, это нельзя отменить."
+      >
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-10 flex-1" onClick={() => setOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            variant="destructive"
+            className="h-10 flex-1 font-medium"
+            disabled={del.isPending}
+            onClick={() =>
+              del.mutate(name, {
+                onSuccess: () => {
+                  setOpen(false);
+                  toast.success("Удалено");
+                  navigate(back, { replace: true });
+                },
+                onError: (e) => {
+                  setOpen(false);
+                  toast.error(e.message);
+                },
+              })
+            }
+          >
+            {del.isPending && <Loader2 className="animate-spin" />}
+            Удалить
+          </Button>
+        </div>
+      </ResponsiveModal>
+    </>
   );
 }

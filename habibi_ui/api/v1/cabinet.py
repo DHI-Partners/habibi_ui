@@ -377,4 +377,19 @@ def delete(section, name):
 	if not s.can_delete:
 		frappe.throw(_("Удаление в этом разделе запрещено"), frappe.PermissionError)
 	_doc_in_section(row, s, name)
-	frappe.delete_doc(s.doctype, name)
+	# Адаптеры полей прибирают за собой то, что держит документ (цена позиции меню — отдельный DocType).
+	# Всё одной атомарной операцией: отказался сам документ — цену возвращаем, а не оставляем позицию без неё
+	savepoint = "cabinet_delete"
+	frappe.db.savepoint(savepoint)
+	try:
+		for spec in parse_fields(row.list_fields) + parse_fields(row.form_fields):
+			a = registry.adapter(spec.fieldname) if spec.adapter else None
+			if a is not None and hasattr(a, "before_delete"):
+				a.before_delete(name)
+		frappe.delete_doc(s.doctype, name)
+	except frappe.LinkExistsError:
+		frappe.db.rollback(save_point=savepoint)
+		frappe.throw(
+			_("Нельзя удалить: запись используется в заказах или других документах. Снимите её с продажи, если это позиция меню."),
+			frappe.ValidationError,
+		)

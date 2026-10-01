@@ -419,3 +419,30 @@ class TestCabinetListing(IntegrationTestCase):
 	def test_board_без_адаптера_быстрых_фильтров_нет(self):
 		with self.assertRaises(frappe.ValidationError):
 			cabinet.board("todo")
+
+	def test_delete_зовёт_before_delete_адаптера_и_откатывает_при_отказе(self):
+		"""Адаптер прибирает то, что держит документ (цена позиции); отказал сам документ — прибранное возвращается."""
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections[0].can_delete = 1
+		settings.sections[0].list_fields = "description:Что сделать\n@fake_status:Статус"
+		settings.save()
+		name = frappe.get_doc({"doctype": "ToDo", "description": "удаляемое"}).insert().name
+		adapter = type("A", (), {})()
+		adapter.doctype, adapter.label, adapter.fieldtype = "ToDo", "Статус", "Data"
+		adapter.editable = lambda: False
+		adapter.read = lambda names: {}
+		seen = []
+		adapter.before_delete = seen.append
+		with patch("habibi_ui.cabinet.registry.adapter", return_value=adapter):
+			cabinet.delete("todo", name)
+		self.assertEqual(seen, [name])
+		self.assertFalse(frappe.db.exists("ToDo", name))
+		# Отказ документа: понятная ошибка, а не сырой LinkExistsError
+		name = frappe.get_doc({"doctype": "ToDo", "description": "связанное"}).insert().name
+		with (
+			patch("habibi_ui.cabinet.registry.adapter", return_value=adapter),
+			patch("frappe.delete_doc", side_effect=frappe.LinkExistsError("linked")),
+			self.assertRaises(frappe.ValidationError),
+		):
+			cabinet.delete("todo", name)
+		self.assertTrue(frappe.db.exists("ToDo", name))

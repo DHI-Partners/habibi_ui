@@ -216,10 +216,9 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
             <span className={cn("size-1.5 shrink-0 rounded-full", chat.paused ? "bg-amber-500" : "bg-emerald-500")} />
             {chat.paused ? "Бот на паузе" : "Отвечает бот"}
           </div>
-          {(chat.username || chat.telegram_id) && (
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-              {chat.username && <CopyValue label={`@${chat.username}`} value={`@${chat.username}`} />}
-              {chat.telegram_id && <CopyValue label={`ID ${chat.telegram_id}`} value={chat.telegram_id} />}
+          {chat.username && (
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              <CopyValue label={`@${chat.username}`} value={`@${chat.username}`} />
             </div>
           )}
         </div>

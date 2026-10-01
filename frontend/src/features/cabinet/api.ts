@@ -111,3 +111,16 @@ export function useIsOwner(): boolean {
   const me = useMe();
   return !!me.data?.roles.some((r) => OWNER_ROLES.includes(r));
 }
+
+/** Удалить запись раздела (если раздел это разрешает). Сервер объяснит, если запись используется в других документах. */
+export function useDeleteSectionDoc(key: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => call<null>("habibi_ui.api.v1.cabinet.delete", { section: key, name }),
+    onSuccess: (_r, name) => {
+      queryClient.removeQueries({ queryKey: ["cabinet", "doc", key, name] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", key] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "facets", key] });
+    },
+  });
+}
