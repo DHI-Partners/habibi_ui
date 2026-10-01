@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-type Event = { topic: "chats" | "orders"; chat: string | null };
+type Event = { topic: "chats" | "orders" | "fulfilment"; chat: string | null };
 
 // Под dev-сервером socket.io на своём порту — см. комментарий у useRealtime.
 function socketHost(): string {
@@ -41,7 +41,9 @@ export function useRealtime() {
           reconnectionAttempts: 3,
         });
         socket.on("habibi_cabinet", (event) => {
-          if (event.topic === "orders") {
+          if (event.topic === "fulfilment") {
+            void queryClient.invalidateQueries({ queryKey: ["cabinet", "fulfilment"] });
+          } else if (event.topic === "orders") {
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
             // Открытый экран заказа тоже перечитывается: заказ мог принять
             // сотрудник или сдвинуть кухня

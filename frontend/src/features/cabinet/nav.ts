@@ -1,4 +1,5 @@
 import {
+  Bike,
   Building2,
   Clock,
   House,
@@ -23,6 +24,7 @@ export const TABS = 3;
 // динамический импорт по имени: весь набор lucide в бандл не тащим, а
 // незнакомое имя получает нейтральную иконку.
 const ICONS: Record<string, LucideIcon> = {
+  bike: Bike,
   home: House,
   house: House,
   receipt: ShoppingBag,
