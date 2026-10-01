@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { cn } from "../../../shared/lib/utils";
 import { Button, buttonVariants } from "../../../shared/ui/button";
 import { ageLabel, plural, shortNo } from "../format";
-import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface } from "../ui";
+import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, WarningNote } from "../ui";
 import { type CourierOrder, useCourierFree, useCourierMine, useMarkDelivered, useTake } from "./api";
 
 type Tab = "mine" | "free";
@@ -55,10 +55,15 @@ export function CourierScreen() {
         </TabButton>
       </div>
 
+      {query.isRefetchError && (
+        <div className="mb-3">
+          <WarningNote>Нет связи — показаны последние данные. Попробуем снова.</WarningNote>
+        </div>
+      )}
       {query.isPending ? (
         <ListSkeleton rows={2} />
-      ) : query.error ? (
-        <ErrorNote title="Список не загрузился">{query.error.message}</ErrorNote>
+      ) : query.data === undefined ? (
+        <ErrorNote title="Список не загрузился">{query.error?.message}</ErrorNote>
       ) : orders.length === 0 ? (
         <EmptyState
           icon={tab === "mine" ? PackageCheck : Bike}

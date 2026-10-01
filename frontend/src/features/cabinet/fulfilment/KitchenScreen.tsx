@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { cn } from "../../../shared/lib/utils";
 import { Button } from "../../../shared/ui/button";
 import { ageLabel, shortNo } from "../format";
-import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface } from "../ui";
+import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, WarningNote } from "../ui";
 import { type KitchenOrder, useKitchenQueue, useMarkReady } from "./api";
 import { useChime } from "./useChime";
 
@@ -67,10 +67,17 @@ export function KitchenScreen() {
         </Button>
       }
     >
+      {/* Сбой фонового опроса не прячет очередь: на экран смотрят, не трогая, и
+          устаревший список лучше пустой плашки ошибки */}
+      {queue.isRefetchError && (
+        <div className="mb-3">
+          <WarningNote>Нет связи — показаны последние данные. Попробуем снова.</WarningNote>
+        </div>
+      )}
       {queue.isPending ? (
         <ListSkeleton rows={3} />
-      ) : queue.error ? (
-        <ErrorNote title="Очередь не загрузилась">{queue.error.message}</ErrorNote>
+      ) : queue.data === undefined ? (
+        <ErrorNote title="Очередь не загрузилась">{queue.error?.message}</ErrorNote>
       ) : orders.length === 0 ? (
         <EmptyState icon={ChefHat} text="Заказов на кухне нет" />
       ) : (
