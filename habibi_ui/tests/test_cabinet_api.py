@@ -239,3 +239,115 @@ class TestCabinetApi(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		admin_result = cabinet.get("todo", todo.name)
 		self.assertEqual(admin_result["priority"], "High")
+
+
+class TestCabinetListing(IntegrationTestCase):
+	"""Список раздела: сортировка, поиск, счётчик, фильтры и быстрые фильтры адаптера."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections = []
+		settings.append("sections", SECTION)
+		settings.save()
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def _todo(self, text, creation=None, **kw):
+		doc = frappe.get_doc({"doctype": "ToDo", "description": text, **kw}).insert()
+		if creation:
+			frappe.db.set_value("ToDo", doc.name, "creation", creation, update_modified=False)
+		return doc.name
+
+	def _texts(self, **kw):
+		return [frappe.db.get_value("ToDo", r["name"], "description") for r in cabinet.list("todo", **kw)["rows"]]
+
+	def test_по_умолчанию_новые_сверху_по_дате_создания_а_не_правки(self):
+		old = self._todo("старое", creation="2026-01-01 10:00:00")
+		self._todo("новое", creation="2026-06-01 10:00:00")
+		# Правка старой записи не поднимает её наверх: «последний» — это созданный последним
+		frappe.db.set_value("ToDo", old, "description", "старое", update_modified=True)
+		self.assertEqual(self._texts()[:2], ["новое", "старое"])
+
+	def test_order_by_только_поля_раздела(self):
+		self._todo("б", creation="2026-01-01 10:00:00")
+		self._todo("а", creation="2026-02-01 10:00:00")
+		self.assertEqual(self._texts(order_by="description asc")[:2], ["а", "б"])
+		self.assertEqual(self._texts(order_by="description desc")[:2], ["б", "а"])
+		# Чужое поле и мусор не ломают запрос и не дают сортировку по скрытому: ведёт себя как по умолчанию
+		for bad in ("allocated_to asc", "description; drop table tabToDo", "description sideways", ""):
+			with self.subTest(bad):
+				self.assertEqual(self._texts(order_by=bad)[:2], ["а", "б"])
+
+	def test_total_не_зависит_от_страницы(self):
+		for i in range(5):
+			self._todo(f"дело {i}")
+		result = cabinet.list("todo", page_length=2)
+		self.assertEqual(len(result["rows"]), 2)
+		self.assertTrue(result["has_more"])
+		self.assertGreaterEqual(result["total"], 5)
+		second = cabinet.list("todo", start=2, page_length=2)
+		self.assertEqual(len({r["name"] for r in result["rows"]} & {r["name"] for r in second["rows"]}), 0)
+
+	def test_total_считает_с_базовым_фильтром_и_поиском(self):
+		self._todo("ёлка открытая")
+		self._todo("ёлка закрытая", status="Closed")
+		self.assertEqual(cabinet.list("todo", search="ёлка")["total"], 1)
+
+	def test_поиск_по_текстовым_полям_и_номеру(self):
+		hit = self._todo("зелёная ёлка")
+		self._todo("красный шар")
+		self.assertEqual(self._texts(search="ёлка"), ["зелёная ёлка"])
+		self.assertEqual(self._texts(search=hit), ["зелёная ёлка"])  # по номеру (name)
+		self.assertEqual(self._texts(search="  "), self._texts())  # пустой поиск — без поиска
+
+	def test_поиск_не_выходит_за_поля_раздела(self):
+		self._todo("обычное", allocated_to="Administrator")
+		# allocated_to не в list_fields: искать по нему нельзя
+		self.assertEqual(self._texts(search="Administrator"), [])
+
+	def test_фильтр_по_дате_создания(self):
+		self._todo("июль", creation="2026-07-10 10:00:00")
+		self._todo("август", creation="2026-08-10 10:00:00")
+		got = self._texts(filters=[["creation", ">=", "2026-08-01 00:00:00"], ["creation", "<=", "2026-08-31 23:59:59"]])
+		self.assertEqual(got, ["август"])
+
+	def _fake_status_adapter(self):
+		adapter = type("A", (), {})()
+		adapter.doctype, adapter.label, adapter.fieldtype = "ToDo", "Статус", "Data"
+		adapter.editable = lambda: False
+		adapter.read = lambda names: {}
+		adapter.facets = lambda: [
+			{"key": "high", "label": "Высокие", "filters": [["priority", "=", "High"]]},
+			{"key": "low", "label": "Низкие", "filters": [["priority", "=", "Low"]]},
+		]
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections[0].list_fields = "description:Что сделать\n@fake_status:Статус"
+		settings.save()
+		return patch("habibi_ui.cabinet.registry.adapter", return_value=adapter)
+
+	def test_быстрый_фильтр_адаптера_в_списке(self):
+		self._todo("важное", priority="High")
+		self._todo("потом", priority="Low")
+		with self._fake_status_adapter():
+			self.assertEqual(self._texts(facet="high"), ["важное"])
+			self.assertEqual(self._texts(facet="low"), ["потом"])
+			with self.assertRaises(frappe.ValidationError):
+				cabinet.list("todo", facet="no_such_facet")
+
+	def test_facets_счётчики_с_базовым_фильтром(self):
+		self._todo("важное", priority="High")
+		self._todo("ещё важное", priority="High")
+		self._todo("закрытое важное", priority="High", status="Closed")
+		self._todo("потом", priority="Low")
+		with self._fake_status_adapter():
+			got = {f["key"]: f["count"] for f in cabinet.facets("todo")}
+			labels = [f["label"] for f in cabinet.facets("todo")]
+		self.assertEqual((got["high"], got["low"]), (2, 1))
+		self.assertEqual(got[""], 3)  # «Все» — с базовым фильтром раздела
+		self.assertEqual(labels[0], "Все")
+
+	def test_facets_без_адаптера_пусты(self):
+		self.assertEqual(cabinet.facets("todo"), [])

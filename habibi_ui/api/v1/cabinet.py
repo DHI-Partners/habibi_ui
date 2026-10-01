@@ -19,6 +19,11 @@ STAFF_ROLES = ("Habibi Owner", "Habibi Staff")
 FLOOR_ROLES = ("Habibi Kitchen", "Habibi Courier")
 CABINET_ROLES = STAFF_ROLES + FLOOR_ROLES
 PAGE_LIMIT = 100
+# Типы полей, по которым ищет строка поиска, и поля, по которым можно сортировать
+# и отбирать помимо перечисленных в разделе: системные, они есть у любого документа
+SEARCH_TYPES = frozenset({"Data", "Link", "Small Text", "Text", "Long Text", "Text Editor"})
+SYSTEM_SORT = frozenset({"creation", "modified", "name"})
+DEFAULT_ORDER = "creation desc"
 
 # Служебные поля Frappe (frappe.model.default_fields) не имеют DocField в мете
 # доктайпа — meta.get_field() отдаёт по ним None. Кабинет всё равно должен их
@@ -166,24 +171,97 @@ def config():
 	return [asdict(s) for _row, s in _sections().values()]
 
 
+def _order_by(order_by, allowed):
+	"""«поле asc|desc» только по полям раздела и системным; всё остальное —
+	молча по умолчанию (новые сверху): сортировка по скрытому полю выдала бы его
+	порядок, а мусор в order_by не должен доходить до SQL."""
+	field, _sep, direction = str(order_by or "").strip().partition(" ")
+	direction = direction.strip().lower() or "asc"
+	if field in allowed and direction in ("asc", "desc"):
+		return f"{field} {direction}"
+	return DEFAULT_ORDER
+
+
+def _search_filters(search, s, plain):
+	"""Поиск — по номеру и текстовым полям раздела, не по любым полям документа."""
+	text = (search or "").strip()
+	if not text:
+		return None
+	fields = [f.fieldname for f in s.list_fields if f.fieldname in plain and f.fieldtype in SEARCH_TYPES]
+	return [[s.doctype, name, "like", f"%{text}%"] for name in sorted({"name", *fields})]
+
+
+def _facet_adapter(specs):
+	"""Адаптер раздела с быстрыми фильтрами (статус заказа): знает, как по его
+	значению отобрать документы. Нет такого — быстрых фильтров у раздела нет."""
+	for spec in specs:
+		if spec.adapter:
+			a = registry.adapter(spec.fieldname)
+			if a is not None and hasattr(a, "facets"):
+				return a
+	return None
+
+
+def _facet_filters(specs, facet):
+	if not facet:
+		return []
+	adapter = _facet_adapter(specs)
+	for f in adapter.facets() if adapter else []:
+		if f["key"] == facet:
+			return [[*x] for x in f["filters"]]
+	frappe.throw(_("Неизвестный фильтр"), frappe.ValidationError)
+
+
+def _count(doctype, filters, or_filters=None):
+	# v16 не принимает функции SQL строкой в fields — только словарём
+	return frappe.get_list(doctype, fields=[{"COUNT": "name", "as": "total"}], filters=filters, or_filters=or_filters)[0][
+		"total"
+	]
+
+
 @frappe.whitelist()
-def list(section, filters=None, start=0, page_length=20):
+def list(section, filters=None, start=0, page_length=20, search=None, order_by=None, facet=None):
 	_require_login()
 	row, s = _section(section)
 	specs = parse_fields(row.list_fields)
-	plain = [f.fieldname for f in specs if not f.adapter]
+	plain = {f.fieldname for f in specs if not f.adapter}
 	page_length = min(int(page_length), PAGE_LIMIT)
+	user_filters = frappe.parse_json(filters) if filters else None
+	# Дата создания — системное поле: по ней отбирают периодом, хотя в списке её может не быть
+	flt = merge_filters(row.base_filters, user_filters, plain | {"creation"}) + _facet_filters(specs, facet)
+	or_flt = _search_filters(search, s, plain)
 	rows = frappe.get_list(
 		s.doctype,
 		fields=sorted({"name", *plain}),
-		filters=merge_filters(row.base_filters, frappe.parse_json(filters) if filters else None, set(plain)),
-		order_by="modified desc",
+		filters=flt,
+		or_filters=or_flt,
+		order_by=_order_by(order_by, plain | SYSTEM_SORT),
 		start=int(start),
 		page_length=page_length + 1,
 	)
 	has_more = len(rows) > page_length
 	rows = _with_adapters(rows[:page_length], specs)
-	return {"rows": rows, "has_more": has_more}
+	return {"rows": rows, "has_more": has_more, "total": _count(s.doctype, flt, or_flt)}
+
+
+@frappe.whitelist()
+def facets(section):
+	"""Быстрые фильтры раздела со счётчиками: «Все» и то, что даёт адаптер.
+
+	Счётчик — с базовым фильтром раздела, но без поиска и прочих фильтров: это
+	«сколько всего в такой группе», по нему владелец видит, где что висит."""
+	_require_login()
+	row, s = _section(section)
+	adapter = _facet_adapter(parse_fields(row.list_fields))
+	if adapter is None:
+		return []
+	base = merge_filters(row.base_filters, None, set())
+	result = [{"key": "", "label": _("Все"), "count": _count(s.doctype, base)}]
+	for f in adapter.facets():
+		result.append(
+			{"key": f["key"], "label": f["label"], "count": _count(s.doctype, base + [[*x] for x in f["filters"]])}
+		)
+	return result
 
 
 def _doc_in_section(row, s, name):
