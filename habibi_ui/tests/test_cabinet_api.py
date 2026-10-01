@@ -380,3 +380,42 @@ class TestCabinetListing(IntegrationTestCase):
 
 	def test_facets_без_адаптера_пусты(self):
 		self.assertEqual(cabinet.facets("todo"), [])
+
+	def _board_adapter(self):
+		adapter = type("A", (), {})()
+		adapter.doctype, adapter.label, adapter.fieldtype = "ToDo", "Статус", "Data"
+		adapter.editable = lambda: False
+		adapter.read = lambda names: {}
+		adapter.facets = lambda: [
+			{"key": "high", "label": "Высокие", "filters": [["priority", "=", "High"]], "closed": False},
+			{"key": "low", "label": "Низкие", "filters": [["priority", "=", "Low"]], "closed": False},
+			{"key": "done", "label": "Закрытые", "filters": [["priority", "=", "Medium"]], "closed": True},
+		]
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections[0].list_fields = "description:Что сделать\n@fake_status:Статус"
+		settings.save()
+		return patch("habibi_ui.cabinet.registry.adapter", return_value=adapter)
+
+	def test_board_колонки_открытых_без_закрытых(self):
+		self._todo("важное", priority="High", creation="2026-01-02 10:00:00")
+		self._todo("самое старое важное", priority="High", creation="2026-01-01 10:00:00")
+		self._todo("потом", priority="Low")
+		self._todo("закрытое", priority="Medium")
+		with self._board_adapter():
+			columns = cabinet.board("todo")
+		self.assertEqual([c["key"] for c in columns], ["high", "low"])  # закрытых колонок нет, «Все» тоже
+		high = columns[0]
+		self.assertEqual((high["label"], high["total"]), ("Высокие", 2))
+		# Внутри колонки сверху то, что ждёт дольше всех
+		self.assertEqual([frappe.db.get_value("ToDo", r["name"], "description") for r in high["rows"]], ["самое старое важное", "важное"])
+
+	def test_board_ограничивает_колонку_и_говорит_что_есть_ещё(self):
+		for i in range(4):
+			self._todo(f"дело {i}", priority="High")
+		with self._board_adapter():
+			(high, _low) = cabinet.board("todo", limit=3)
+		self.assertEqual((len(high["rows"]), high["total"], high["has_more"]), (3, 4, True))
+
+	def test_board_без_адаптера_быстрых_фильтров_нет(self):
+		with self.assertRaises(frappe.ValidationError):
+			cabinet.board("todo")

@@ -62,6 +62,18 @@ export function useSectionInfinite(key: string, q: ListQuery, enabled: boolean) 
   });
 }
 
+/** Колонка доски: открытые документы одного быстрого фильтра (на доске нет «закрытых»). */
+export type BoardColumn = { key: string; label: string; total: number; rows: Row[]; has_more: boolean };
+
+export function useBoard(key: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["cabinet", "list", key, "board"],
+    queryFn: () => call<BoardColumn[]>("habibi_ui.api.v1.cabinet.board", { section: key }),
+    enabled,
+    refetchInterval: 30_000,
+  });
+}
+
 export function useFacets(key: string, enabled = true) {
   return useQuery({
     queryKey: ["cabinet", "facets", key],

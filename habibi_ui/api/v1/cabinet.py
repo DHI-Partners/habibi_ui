@@ -293,6 +293,27 @@ def facets(section):
 	return result
 
 
+@frappe.whitelist()
+def board(section, limit=30):
+	"""Доска: открытые документы раздела по колонкам быстрых фильтров.
+
+	Колонки — фильтры адаптера, кроме «закрытых» (выдан, отменён): их место в
+	списке. В колонке сверху то, что ждёт дольше всех. Нет быстрых фильтров —
+	нет и доски."""
+	_require_login()
+	row, _s = _section(section)
+	adapter = _facet_adapter(parse_fields(row.list_fields))
+	if adapter is None:
+		frappe.throw(_("У этого раздела нет доски"), frappe.ValidationError)
+	columns = []
+	for f in adapter.facets():
+		if f.get("closed"):
+			continue
+		page = list(section, facet=f["key"], page_length=limit, order_by="creation asc")
+		columns.append({"key": f["key"], "label": f["label"], "total": page["total"], "rows": page["rows"], "has_more": page["has_more"]})
+	return columns
+
+
 def _doc_in_section(row, s, name):
 	filters = merge_filters(row.base_filters, None, set()) + [["name", "=", name]]
 	if not frappe.get_list(s.doctype, filters=filters, pluck="name", limit=1):

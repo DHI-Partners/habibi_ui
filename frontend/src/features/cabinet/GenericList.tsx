@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, ChevronRight, Plus, SearchX } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { cn } from "../../shared/lib/utils";
@@ -8,20 +8,13 @@ import { Button, buttonVariants } from "../../shared/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../shared/ui/table";
 import { PAGE_SIZE, type Row, useFacets, useSectionInfinite, useSectionPage } from "./api";
 import { formatValue } from "./FieldInput";
-import { docstatusBadge, orderBadge, type StateKind, shortNo, stateBadge } from "./format";
-import { fulfilmentIcon } from "./icons";
+import { Cell, isBadge, NUMERIC, STATUS, titleText } from "./listCells";
 import { buildQuery, INITIAL_STATE, isDirty, type ListState, nextOrder } from "./listState";
 import { ListToolbar } from "./ListToolbar";
 import { sectionIcon, useSectionBack } from "./nav";
+import { OrdersBoard } from "./OrdersBoard";
 import { Pager } from "./Pager";
-import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, useIsDesktop } from "./ui";
-
-const NUMERIC = new Set(["Currency", "Float", "Int"]);
-
-// Не тип Frappe: так адаптер (например @order_status в habibi_ai) помечает
-// человеческий статус документа — значение {state, kind}, рисуется бейджем
-// тем же правилом, что на экране заказа (orderBadge).
-const STATUS = "Status";
+import { EmptyState, ErrorNote, ListSkeleton, Page, surface, useIsDesktop, ViewToggle } from "./ui";
 
 /**
  * Есть человеческий статус — docstatus («Черновик/Проведён») колонкой не нужен:
@@ -34,52 +27,33 @@ function withoutRawStatus(section: CabinetSection): CabinetSection {
   return { ...section, list_fields: section.list_fields.filter((f) => f.fieldname !== "docstatus") };
 }
 
-/** Значение ячейки: статусы Frappe — бейджем, числа — с разрядами, флаг — бейджем с подписью. */
-function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
-  const value = row[field.fieldname];
-  if (field.fieldname === "docstatus") {
-    const [label, tone] = docstatusBadge(value);
-    return <StatusBadge tone={tone}>{label}</StatusBadge>;
-  }
-  if (field.fieldtype === STATUS) {
-    const status = value as { state: string; kind: StateKind } | null | undefined;
-    if (!status) return null;
-    const [label, tone] = orderBadge(status.state, status.kind);
-    return <StatusBadge tone={tone}>{label}</StatusBadge>;
-  }
-  if (field.fieldname === "workflow_state") {
-    if (!value) return null;
-    const [label, tone] = stateBadge(String(value));
-    return <StatusBadge tone={tone}>{label}</StatusBadge>;
-  }
-  if (field.fieldtype === "Check") {
-    return value ? <StatusBadge tone="neutral">{field.label}</StatusBadge> : null;
-  }
-  const Icon = field.fieldtype === "Select" ? fulfilmentIcon(value) : undefined;
-  if (Icon) {
-    return (
-      <span className="inline-flex items-center gap-1.5">
-        <Icon className="size-4 text-muted-foreground" aria-hidden />
-        {formatValue(field, value)}
-      </span>
-    );
-  }
-  return formatValue(field, value);
-}
-
-/** Текст первой колонки: у заказов — «№10», а не SAL-ORD-2026-00010 (длинное имя владельцу ни к чему). */
-function titleText(section: CabinetSection, f: CabinetField, row: Row): string {
-  if (section.doctype === "Sales Order" && f.fieldname === "name") return shortNo(row.name);
-  return formatValue(f, row[f.fieldname]) || row.name;
-}
-
-const isBadge = (f: CabinetField) =>
-  f.fieldname === "docstatus" || f.fieldname === "workflow_state" || f.fieldtype === STATUS || f.fieldtype === "Check";
-
 // Столбцы, по которым имеет смысл сортировать кликом: значения самого документа.
 // Адаптеры (сумма, статус, число заказов) сервер не сортирует.
 const SORTABLE = new Set(["Data", "Link", "Select", "Date", "Datetime", "Phone", "Small Text"]);
 const DEBOUNCE_MS = 300;
+
+type View = "list" | "board";
+
+/** Список или доска; выбор помнится на этом устройстве (localStorage может не работать — тогда просто не помнится). */
+function useView(key: string): [View, (v: View) => void] {
+  const storageKey = `habibi.cabinet.view.${key}`;
+  const [view, setViewState] = useState<View>(() => {
+    try {
+      return localStorage.getItem(storageKey) === "board" ? "board" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const setView = (v: View) => {
+    setViewState(v);
+    try {
+      localStorage.setItem(storageKey, v);
+    } catch {
+      // приватный режим — не страшно
+    }
+  };
+  return [view, setView];
+}
 
 export function GenericList({ section: raw }: { section: CabinetSection }) {
   const section = withoutRawStatus(raw);
@@ -103,8 +77,12 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
   useEffect(() => setPage(0), [queryKey]);
 
   const facets = useFacets(section.key);
-  const paged = useSectionPage(section.key, query, page, desktop);
-  const infinite = useSectionInfinite(section.key, query, !desktop);
+  // Доска доступна там, где есть быстрые фильтры (статусы заказов): колонки — это они
+  const canBoard = (facets.data?.length ?? 0) > 1;
+  const [view, setView] = useView(section.key);
+  const board = canBoard && view === "board";
+  const paged = useSectionPage(section.key, query, page, desktop && !board);
+  const infinite = useSectionInfinite(section.key, query, !desktop && !board);
   const active = desktop ? paged : infinite;
   const rows = desktop ? (paged.data?.rows ?? []) : (infinite.data?.pages.flatMap((p) => p.rows) ?? []);
   const total = desktop ? paged.data?.total : infinite.data?.pages[0]?.total;
@@ -131,9 +109,17 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
       subtitle={total === undefined ? undefined : `${dirty ? "Найдено" : "Всего"}: ${total}`}
       back={back}
       backMobileOnly
-      actions={add}
+      actions={
+        <>
+          {canBoard && <ViewToggle value={view} onChange={setView} />}
+          {add}
+        </>
+      }
       width="wide"
     >
+      {board ? (
+        <OrdersBoard section={section} />
+      ) : (
       <div className="space-y-3">
         <ListToolbar
           section={section}
@@ -285,6 +271,7 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
           </>
         )}
       </div>
+      )}
     </Page>
   );
 }

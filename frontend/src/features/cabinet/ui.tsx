@@ -1,4 +1,4 @@
-import { ChevronLeft, type LucideIcon, RotateCw, TriangleAlert } from "lucide-react";
+import { ChevronLeft, Columns3, LayoutList, type LucideIcon, RotateCw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -122,6 +122,33 @@ export function StatusBadge({
 
 /** Основное действие экрана смены («Готово», «Доставлено»): тёмная нейтральная кнопка вместо яркой синей. */
 export const darkButton = "bg-foreground text-background hover:bg-foreground/85";
+
+/** Переключатель «Список | Доска» в шапке раздела. */
+export function ViewToggle({ value, onChange }: { value: "list" | "board"; onChange: (v: "list" | "board") => void }) {
+  const items = [
+    { value: "list" as const, label: "Список", Icon: LayoutList },
+    { value: "board" as const, label: "Доска", Icon: Columns3 },
+  ];
+  return (
+    <div role="group" aria-label="Вид" className="inline-flex rounded-lg bg-muted p-0.5">
+      {items.map(({ value: v, label, Icon }) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={value === v}
+          onClick={() => onChange(v)}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors",
+            value === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Icon className="size-4" aria-hidden />
+          <span className="max-sm:sr-only">{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export type TabItem<T extends string> = { value: T; label: ReactNode; count?: number; icon?: LucideIcon };
 
