@@ -1,5 +1,5 @@
 import { ChevronLeft, Loader2, MessageCircle, SendHorizontal, Trash2 } from "lucide-react";
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -362,31 +362,41 @@ function BubblesSkeleton() {
   );
 }
 
-/** Подтверждение очистки переписки. «И в Telegram» — только для чатов личного аккаунта. */
+/** Что именно сотрёт «Удалить» — списком, чтобы не гадать, где переписка останется. */
+function Effect({ children, off }: { children: React.ReactNode; off?: boolean }) {
+  return <li className={cn("flex items-start gap-2", off && "text-muted-foreground")}>{off ? "✕" : "✓"} <span>{children}</span></li>;
+}
+
+/** Подтверждение очистки переписки. «И в Telegram» — только для чатов личного аккаунта, там включено сразу. */
 function DeleteDialog({ chat, open, onOpenChange }: { chat: ChatItem; open: boolean; onOpenChange: (open: boolean) => void }) {
   const del = useDeleteConversation();
-  const [inTelegram, setInTelegram] = useState(false);
+  const [inTelegram, setInTelegram] = useState(chat.via_account);
+  // Каждый раз с чистого листа: по умолчанию стираем везде, где это возможно
+  useEffect(() => {
+    if (open) setInTelegram(chat.via_account);
+  }, [open, chat.via_account]);
+  const telegram = chat.via_account && inTelegram;
   return (
     <ResponsiveModal
       open={open}
       onOpenChange={onOpenChange}
       title="Удалить переписку?"
-      description={`Сообщения с «${chat.title}» исчезнут из кабинета, а бот забудет этот разговор. Подключение бота к чату сохранится.`}
+      description={`Переписка с «${chat.title}». Подключение бота к чату сохранится.`}
     >
       <div className="space-y-4">
+        <ul className="space-y-1.5 text-sm">
+          <Effect>в кабинете: все сообщения</Effect>
+          <Effect>память бота: он забудет этот разговор</Effect>
+          <Effect off={!telegram}>{telegram ? "в Telegram: сообщения исчезнут и у клиента" : "в Telegram: сообщения останутся"}</Effect>
+        </ul>
         {chat.via_account ? (
-          <label className="flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm">
-            <Switch checked={inTelegram} onCheckedChange={setInTelegram} className="mt-0.5" />
-            <span>
-              <span className="font-medium">Удалить также в Telegram</span>
-              <span className="block text-xs text-muted-foreground">
-                Сообщения исчезнут и у клиента — у всех участников чата. Вернуть их будет нельзя.
-              </span>
-            </span>
+          <label className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
+            <Switch checked={inTelegram} onCheckedChange={setInTelegram} />
+            <span className="font-medium">Удалить также в Telegram у всех</span>
           </label>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            В самом Telegram сообщения останутся: бот не может стирать их у клиента. Очистите чат в приложении Telegram вручную.
+          <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Этот чат ведёт бот, а бот не может стирать сообщения в Telegram. Чтобы убрать их и там, очистите чат в приложении Telegram.
           </p>
         )}
         <div className="flex gap-2">
@@ -399,12 +409,12 @@ function DeleteDialog({ chat, open, onOpenChange }: { chat: ChatItem; open: bool
             disabled={del.isPending}
             onClick={() =>
               del.mutate(
-                { chat: chat.chat, inTelegram: inTelegram && chat.via_account },
+                { chat: chat.chat, inTelegram: telegram },
                 {
                   onSuccess: (r) => {
                     onOpenChange(false);
-                    toast.success(`Переписка удалена${r.telegram ? " и в Telegram" : ""}`);
-                    if (!r.engine) toast.warning("Память бота об этом разговоре стереть не удалось — см. журнал ошибок");
+                    toast.success(`Переписка удалена: в кабинете${r.telegram ? ", в Telegram" : ""} и у бота`);
+                    if (r.engine === "error") toast.warning("Бот может помнить часть разговора: стереть его память не удалось");
                   },
                   onError: (e) => toast.error(e.message),
                 },

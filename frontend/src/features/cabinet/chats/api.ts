@@ -54,7 +54,7 @@ export function useDeleteConversation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ chat, inTelegram }: { chat: string; inTelegram: boolean }) =>
-      call<{ messages: number; telegram: boolean; engine: boolean }>("habibi_ai.cabinet.chats.delete_conversation", {
+      call<{ messages: number; telegram: boolean; engine: "cleared" | "none" | "error" }>("habibi_ai.cabinet.chats.delete_conversation", {
         chat,
         in_telegram: inTelegram ? 1 : 0,
       }),
