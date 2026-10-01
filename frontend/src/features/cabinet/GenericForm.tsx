@@ -8,10 +8,11 @@ import type { CabinetSection } from "../../shared/types/api";
 import { Button } from "../../shared/ui/button";
 import { Label } from "../../shared/ui/label";
 import { Skeleton } from "../../shared/ui/skeleton";
-import { useCabinetConfig, useDeleteSectionDoc, useSaveSectionDoc, useSectionDoc } from "./api";
+import { useCabinetConfig, useSaveSectionDoc, useSectionDoc } from "./api";
+import { DeleteRecordDialog } from "./DeleteRecord";
 import { FieldInput, formatValue, isInline } from "./FieldInput";
 import { OrderScreen } from "./orders/OrderScreen";
-import { EmptyState, ErrorNote, Page, ResponsiveModal, surface } from "./ui";
+import { EmptyState, ErrorNote, Page, surface } from "./ui";
 
 // Разделы, у которых вместо формы — свой экран документа (заказ: карточка
 // клиента, сумма, «Принять/Отклонить»). Поля заказа в кабинете не правятся —
@@ -174,9 +175,8 @@ function GenericForm({ section, name }: { section: CabinetSection; name: string 
   );
 }
 
-/** Удаление записи раздела (позиция меню и т.п.) с подтверждением; сервер отказывает, если запись используется в заказах. */
+/** Кнопка «Удалить» под формой записи раздела; подтверждение — общее с удалением из списка. */
 function DeleteRecord({ section, name, title, back }: { section: CabinetSection; name: string; title: string; back: string }) {
-  const del = useDeleteSectionDoc(section.key);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   return (
@@ -186,39 +186,14 @@ function DeleteRecord({ section, name, title, back }: { section: CabinetSection;
           <Trash2 /> Удалить
         </Button>
       </div>
-      <ResponsiveModal
+      <DeleteRecordDialog
+        section={section}
+        name={name}
+        title={title}
         open={open}
         onOpenChange={setOpen}
-        title={`Удалить «${title}»?`}
-        description="Запись исчезнет из раздела, это нельзя отменить."
-      >
-        <div className="flex gap-2">
-          <Button variant="outline" className="h-10 flex-1" onClick={() => setOpen(false)}>
-            Отмена
-          </Button>
-          <Button
-            variant="destructive"
-            className="h-10 flex-1 font-medium"
-            disabled={del.isPending}
-            onClick={() =>
-              del.mutate(name, {
-                onSuccess: () => {
-                  setOpen(false);
-                  toast.success("Удалено");
-                  navigate(back, { replace: true });
-                },
-                onError: (e) => {
-                  setOpen(false);
-                  toast.error(e.message);
-                },
-              })
-            }
-          >
-            {del.isPending && <Loader2 className="animate-spin" />}
-            Удалить
-          </Button>
-        </div>
-      </ResponsiveModal>
+        onDeleted={() => navigate(back, { replace: true })}
+      />
     </>
   );
 }

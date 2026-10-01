@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ChevronRight, Plus, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, Plus, SearchX, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -7,6 +7,7 @@ import type { CabinetField, CabinetSection } from "../../shared/types/api";
 import { Button, buttonVariants } from "../../shared/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../shared/ui/table";
 import { PAGE_SIZE, type Row, useFacets, useSectionInfinite, useSectionPage } from "./api";
+import { DeleteRecordDialog } from "./DeleteRecord";
 import { formatValue } from "./FieldInput";
 import { Cell, isBadge, NUMERIC, STATUS, titleText } from "./listCells";
 import { buildQuery, INITIAL_STATE, isDirty, type ListState, nextOrder } from "./listState";
@@ -64,6 +65,8 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
   const [debounced, setDebounced] = useState("");
   const [page, setPage] = useState(0);
   const patch = (p: Partial<ListState>) => setState((s) => ({ ...s, ...p }));
+  // Запись, на которую нажали корзину в строке; у заказов своё удаление на экране заказа
+  const [toDelete, setToDelete] = useState<Row | null>(null);
 
   // Поиск уходит на сервер не на каждую букву, а когда человек остановился
   useEffect(() => {
@@ -93,6 +96,21 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
   const amount = rest.find((f) => NUMERIC.has(f.fieldtype) && f.fieldname !== "docstatus");
   const badges = rest.filter(isBadge);
   const plain = rest.filter((f) => f !== amount && !isBadge(f));
+  const canDelete = section.can_delete && section.doctype !== "Sales Order";
+  const trashButton = (row: Row, className: string) => (
+    <button
+      type="button"
+      aria-label={`Удалить: ${titleText(section, title, row)}`}
+      title="Удалить"
+      onClick={(e) => {
+        e.stopPropagation();
+        setToDelete(row);
+      }}
+      className={cn("inline-flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive", className)}
+    >
+      <Trash2 className="size-4" />
+    </button>
+  );
   const href = (row: Row) => `/c/${section.key}/${encodeURIComponent(row.name)}`;
   const Icon = sectionIcon(section.icon);
 
@@ -154,8 +172,8 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
           <>
             <ul className="space-y-2 md:hidden">
               {rows.map((row) => (
-                <li key={row.name}>
-                  <Link to={href(row)} className={cn(surface, "flex items-center gap-3 px-3.5 py-3 active:bg-muted/60")}>
+                <li key={row.name} className="flex items-stretch gap-2">
+                  <Link to={href(row)} className={cn(surface, "flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 active:bg-muted/60")}>
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="truncate text-[15px] font-semibold">
                         {titleText(section, title, row)}
@@ -183,6 +201,7 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
                     )}
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                   </Link>
+                  {canDelete && trashButton(row, cn(surface, "w-11 shrink-0"))}
                 </li>
               ))}
             </ul>
@@ -219,6 +238,7 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
                         </TableHead>
                       );
                     })}
+                    {canDelete && <TableHead className="w-12" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,6 +262,7 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
                           )}
                         </TableCell>
                       ))}
+                      {canDelete && <TableCell className="w-12 px-2 text-right">{trashButton(row, "size-8")}</TableCell>}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -271,6 +292,15 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
           </>
         )}
       </div>
+      )}
+      {toDelete && (
+        <DeleteRecordDialog
+          section={section}
+          name={toDelete.name}
+          title={titleText(section, section.list_fields[0], toDelete)}
+          open
+          onOpenChange={(open) => !open && setToDelete(null)}
+        />
       )}
     </Page>
   );

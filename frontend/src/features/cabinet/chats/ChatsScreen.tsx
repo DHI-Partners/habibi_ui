@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, Copy, Loader2, MessageCircle, SendHorizontal, Trash2 } from "lucide-react";
+import { ChevronLeft, Loader2, MessageCircle, SendHorizontal, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "../../../shared/ui/button";
 import { Input } from "../../../shared/ui/input";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { Switch } from "../../../shared/ui/switch";
+import { CopyValue } from "../CopyValue";
 import { clock, dayTitle, listStamp, parseSiteDate } from "../format";
 import { useSectionBack } from "../nav";
 import { useIsOwner } from "../api";
@@ -440,38 +441,5 @@ function DeleteDialog({ chat, open, onOpenChange }: { chat: ChatItem; open: bool
         </div>
       </div>
     </ResponsiveModal>
-  );
-}
-
-/** Значение с кнопкой «скопировать»: ID и @username нужны, чтобы найти человека в Telegram. */
-function CopyValue({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      // Нет доступа к буферу (http, старый браузер): выделяем текст в временном поле
-      const field = document.createElement("textarea");
-      field.value = value;
-      document.body.appendChild(field);
-      field.select();
-      document.execCommand("copy");
-      field.remove();
-    }
-    setCopied(true);
-    toast.success(`Скопировано: ${value}`);
-    setTimeout(() => setCopied(false), 1500);
-  }
-  return (
-    <button
-      type="button"
-      onClick={() => void copy()}
-      title="Скопировать"
-      aria-label={`Скопировать ${label}`}
-      className="group inline-flex max-w-full items-center gap-1 truncate rounded px-0.5 hover:text-foreground"
-    >
-      <span className="truncate tabular-nums">{label}</span>
-      {copied ? <Check className="size-3 shrink-0 text-emerald-600" aria-hidden /> : <Copy className="size-3 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden />}
-    </button>
   );
 }

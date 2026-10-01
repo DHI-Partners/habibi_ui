@@ -27,6 +27,8 @@ export type OrderDetails = {
   notes: string | null;
   /** «Paid» / «Unpaid»; null — на сайте нет поля оплаты */
   payment: string | null;
+  /** Алиас клиента в Telegram без @ — для связи вне кабинета */
+  telegram_username: string | null;
   items: { item_name: string; qty: number; rate: number; amount: number }[];
   delivery: { label: string; amount: number } | null;
   total: number;

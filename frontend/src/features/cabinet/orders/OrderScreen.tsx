@@ -10,6 +10,7 @@ import { Skeleton } from "../../../shared/ui/skeleton";
 import { Textarea } from "../../../shared/ui/textarea";
 import { clock, dateLabel, fulfilmentLabel, money, orderBadge, parseSiteDate, type Tone } from "../format";
 import { useIsOwner } from "../api";
+import { CopyValue } from "../CopyValue";
 import { PaymentBadge } from "../PaymentBadge";
 import { EmptyState, ErrorNote, InitialAvatar, Page, ResponsiveModal, StatusBadge, surface, WarningNote } from "../ui";
 import {
@@ -217,7 +218,7 @@ function CustomerCard({ data }: { data: OrderDetails }) {
   const detail = [data.address?.replace(/<br\s*\/?>/gi, ", ").replace(/<[^>]*>/g, "").trim(), data.notes && `«${data.notes}»`]
     .filter(Boolean)
     .join(" · ");
-  if (!customer && !phone && !fulfilment && !detail && !data.chat) return null;
+  if (!customer && !phone && !data.telegram_username && !fulfilment && !detail && !data.chat) return null;
   const Icon = data.fulfilment === "Pickup" ? Store : fulfilment ? Truck : MessageSquareText;
 
   return (
@@ -226,11 +227,14 @@ function CustomerCard({ data }: { data: OrderDetails }) {
         <InitialAvatar name={customer || phone} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-semibold">{customer || "Клиент"}</div>
-          {phone && (
-            <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="text-[13px] text-muted-foreground hover:underline">
-              {phone}
-            </a>
-          )}
+          <div className="flex flex-wrap items-center gap-x-3 text-[13px] text-muted-foreground">
+            {phone && (
+              <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="hover:underline">
+                {phone}
+              </a>
+            )}
+            {data.telegram_username && <CopyValue label={`@${data.telegram_username}`} value={`@${data.telegram_username}`} />}
+          </div>
         </div>
         {data.chat && (
           <Link to={chatHref(data.chat)} className={cn(buttonVariants({ variant: "outline" }), "h-9 shrink-0 gap-1.5 px-3 text-[13px]")}>
