@@ -11,10 +11,11 @@ export function plural(n: number, forms: [string, string, string]): string {
   return forms[2];
 }
 
-/** «только что», «12 мин назад», «1 ч 5 мин назад» — возраст заказа на кухне и в доставке. */
+/** «только что», «12 мин назад», «1 ч 5 мин назад», «3 дн назад» — возраст заказа на кухне и в доставке. */
 export function ageLabel(minutes: number): string {
   if (minutes < 1) return "только что";
   if (minutes < 60) return `${minutes} мин назад`;
+  if (minutes >= 24 * 60) return `${Math.floor(minutes / (24 * 60))} дн назад`;
   const rest = minutes % 60;
   return `${Math.floor(minutes / 60)} ч${rest ? ` ${rest} мин` : ""} назад`;
 }
