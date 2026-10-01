@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2, MessageCircle, SendHorizontal } from "lucide-react";
+import { ChevronLeft, Loader2, MessageCircle, SendHorizontal, Trash2 } from "lucide-react";
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,10 +8,21 @@ import type { CabinetSection } from "../../../shared/types/api";
 import { Button, buttonVariants } from "../../../shared/ui/button";
 import { Input } from "../../../shared/ui/input";
 import { Skeleton } from "../../../shared/ui/skeleton";
+import { Switch } from "../../../shared/ui/switch";
 import { clock, dayTitle, listStamp, parseSiteDate } from "../format";
 import { useSectionBack } from "../nav";
-import { EmptyState, InitialAvatar, ListSkeleton, RetryNote, StatusBadge } from "../ui";
-import { type ChatItem, type ChatMessage, useChatList, useMessages, usePauseChat, useResumeChat, useSendMessage } from "./api";
+import { useIsOwner } from "../api";
+import { EmptyState, InitialAvatar, ListSkeleton, ResponsiveModal, RetryNote, StatusBadge } from "../ui";
+import {
+  type ChatItem,
+  type ChatMessage,
+  useChatList,
+  useDeleteConversation,
+  useMessages,
+  usePauseChat,
+  useResumeChat,
+  useSendMessage,
+} from "./api";
 
 const AUTHOR = { client: "Клиент", bot: "Бот", staff: "Вы" } as const;
 
@@ -164,6 +175,8 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
   const pause = usePauseChat();
   const resume = useResumeChat();
   const [text, setText] = useState("");
+  const owner = useIsOwner();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   // Читатель мог отмотать вверх к истории — новое сообщение не должно вырывать
@@ -224,7 +237,13 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
             Взять на себя
           </Button>
         )}
+        {owner && (
+          <Button variant="ghost" size="icon-lg" aria-label="Удалить переписку" title="Удалить переписку" onClick={() => setConfirmDelete(true)}>
+            <Trash2 className="size-[18px]" />
+          </Button>
+        )}
       </header>
+      <DeleteDialog chat={chat} open={confirmDelete} onOpenChange={setConfirmDelete} />
 
       <div
         ref={listRef}
@@ -340,5 +359,63 @@ function BubblesSkeleton() {
       <Skeleton className="h-16 w-2/3 self-end rounded-2xl" />
       <Skeleton className="h-10 w-2/5 self-start rounded-2xl" />
     </div>
+  );
+}
+
+/** Подтверждение очистки переписки. «И в Telegram» — только для чатов личного аккаунта. */
+function DeleteDialog({ chat, open, onOpenChange }: { chat: ChatItem; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const del = useDeleteConversation();
+  const [inTelegram, setInTelegram] = useState(false);
+  return (
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Удалить переписку?"
+      description={`Сообщения с «${chat.title}» исчезнут из кабинета, а бот забудет этот разговор. Подключение бота к чату сохранится.`}
+    >
+      <div className="space-y-4">
+        {chat.via_account ? (
+          <label className="flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm">
+            <Switch checked={inTelegram} onCheckedChange={setInTelegram} className="mt-0.5" />
+            <span>
+              <span className="font-medium">Удалить также в Telegram</span>
+              <span className="block text-xs text-muted-foreground">
+                Сообщения исчезнут и у клиента — у всех участников чата. Вернуть их будет нельзя.
+              </span>
+            </span>
+          </label>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            В самом Telegram сообщения останутся: бот не может стирать их у клиента. Очистите чат в приложении Telegram вручную.
+          </p>
+        )}
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-10 flex-1" onClick={() => onOpenChange(false)}>
+            Отмена
+          </Button>
+          <Button
+            variant="destructive"
+            className="h-10 flex-1 font-medium"
+            disabled={del.isPending}
+            onClick={() =>
+              del.mutate(
+                { chat: chat.chat, inTelegram: inTelegram && chat.via_account },
+                {
+                  onSuccess: (r) => {
+                    onOpenChange(false);
+                    toast.success(`Переписка удалена${r.telegram ? " и в Telegram" : ""}`);
+                    if (!r.engine) toast.warning("Память бота об этом разговоре стереть не удалось — см. журнал ошибок");
+                  },
+                  onError: (e) => toast.error(e.message),
+                },
+              )
+            }
+          >
+            {del.isPending && <Loader2 className="animate-spin" />}
+            Удалить
+          </Button>
+        </div>
+      </div>
+    </ResponsiveModal>
   );
 }

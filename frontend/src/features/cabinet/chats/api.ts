@@ -8,6 +8,8 @@ export type ChatItem = {
   preview: string;
   last_at: string;
   paused: boolean;
+  /** Чат ведёт личный аккаунт — переписку можно стереть и в самом Telegram */
+  via_account: boolean;
   customer: string | null;
 };
 export type ChatMessage = { name: string; text: string; at: string; author: "client" | "bot" | "staff" };
@@ -46,3 +48,19 @@ function useChatCommand<TVars extends { chat: string }>(method: "send" | "pause"
 export const useSendMessage = () => useChatCommand<{ chat: string; text: string }>("send");
 export const usePauseChat = () => useChatCommand<{ chat: string }>("pause");
 export const useResumeChat = () => useChatCommand<{ chat: string }>("resume");
+
+/** Очистить переписку: у нас, в памяти ИИ и (по желанию) в самом Telegram. Чат и подключение бота остаются. */
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ chat, inTelegram }: { chat: string; inTelegram: boolean }) =>
+      call<{ messages: number; telegram: boolean; engine: boolean }>("habibi_ai.cabinet.chats.delete_conversation", {
+        chat,
+        in_telegram: inTelegram ? 1 : 0,
+      }),
+    onSuccess: (_result, { chat }) => {
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "messages", chat] });
+    },
+  });
+}

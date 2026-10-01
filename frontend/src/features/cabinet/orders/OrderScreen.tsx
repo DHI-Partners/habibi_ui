@@ -1,6 +1,6 @@
 import { Loader2, MessageCircle, MessageSquareText, Store, Trash2, Truck } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { cn } from "../../../shared/lib/utils";
@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "../../../shared/ui/button";
 import { Skeleton } from "../../../shared/ui/skeleton";
 import { Textarea } from "../../../shared/ui/textarea";
 import { clock, dateLabel, fulfilmentLabel, money, orderBadge, parseSiteDate, type Tone } from "../format";
+import { useIsOwner } from "../api";
 import { PaymentBadge } from "../PaymentBadge";
 import { EmptyState, ErrorNote, InitialAvatar, Page, ResponsiveModal, StatusBadge, surface, WarningNote } from "../ui";
 import {
@@ -19,6 +20,7 @@ import {
   useApplyAction,
   useNotify,
   useOrderActions,
+  useDeleteOrder,
   useOrderDetails,
   useSetPayment,
 } from "./api";
@@ -172,6 +174,7 @@ export function OrderScreen({ section, name }: { section: CabinetSection; name: 
         <CustomerCard data={data} />
         <PaymentRow data={data} />
         <Lines data={data} />
+        <DeleteOrder data={data} back={back} />
       </div>
 
       <StepSheet
@@ -437,5 +440,56 @@ function PaymentRow({ data }: { data: OrderDetails }) {
         {paid ? "Снять отметку" : "Отметить оплаченным"}
       </Button>
     </div>
+  );
+}
+
+/** Удаление заказа — владельцу, для тестовых и ошибочных. Остальным кнопки нет; сервер проверяет право сам. */
+function DeleteOrder({ data, back }: { data: OrderDetails; back: string }) {
+  const owner = useIsOwner();
+  const del = useDeleteOrder(data.name);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  if (!owner) return null;
+  return (
+    <>
+      <div className="pt-2">
+        <Button variant="ghost" className="h-9 gap-1.5 px-2 text-[13px] font-medium text-destructive hover:text-destructive" onClick={() => setOpen(true)}>
+          <Trash2 /> Удалить заказ
+        </Button>
+      </div>
+      <ResponsiveModal
+        open={open}
+        onOpenChange={setOpen}
+        title={`Удалить заказ №${data.number}?`}
+        description="Заказ исчезнет из кабинета, кухни и доставки. Это нельзя отменить. Переписка с клиентом останется."
+      >
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-10 flex-1" onClick={() => setOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            variant="destructive"
+            className="h-10 flex-1 font-medium"
+            disabled={del.isPending}
+            onClick={() =>
+              del.mutate(undefined, {
+                onSuccess: () => {
+                  setOpen(false);
+                  toast.success(`Заказ №${data.number} удалён`);
+                  navigate(back, { replace: true });
+                },
+                onError: (e) => {
+                  setOpen(false);
+                  toast.error(e.message);
+                },
+              })
+            }
+          >
+            {del.isPending && <Loader2 className="animate-spin" />}
+            Удалить
+          </Button>
+        </div>
+      </ResponsiveModal>
+    </>
   );
 }

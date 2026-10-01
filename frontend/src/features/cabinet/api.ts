@@ -1,6 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { call } from "../../shared/api/client";
+import { useMe } from "../../shared/api/queries";
 import type { CabinetSection } from "../../shared/types/api";
 
 export type Row = Record<string, unknown> & { name: string };
@@ -101,4 +102,12 @@ export function useSaveSectionDoc(key: string) {
       return queryClient.invalidateQueries({ queryKey: ["cabinet", "list", key] });
     },
   });
+}
+
+const OWNER_ROLES = ["Habibi Owner", "System Manager"];
+
+/** Владелец (или админ системы): только ему показываем удаление заказов и переписок. Сервер проверяет право сам. */
+export function useIsOwner(): boolean {
+  const me = useMe();
+  return !!me.data?.roles.some((r) => OWNER_ROLES.includes(r));
 }

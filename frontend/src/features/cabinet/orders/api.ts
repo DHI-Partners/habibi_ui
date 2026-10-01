@@ -94,3 +94,18 @@ export function useSetPayment(name: string) {
     },
   });
 }
+
+/** Удалить заказ целиком (владелец). Заказ с привязанными счетами и платежами сервер не удалит. */
+export function useDeleteOrder(name: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => call<{ deleted: string }>("habibi_ai.cabinet.orders.delete_order", { name }),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["cabinet", "order-details", name] });
+      queryClient.removeQueries({ queryKey: ["cabinet", "order-actions", name] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "facets", "orders"] });
+      void queryClient.invalidateQueries({ queryKey: ["cabinet", "fulfilment"] });
+    },
+  });
+}
