@@ -37,7 +37,7 @@ export function HomeScreen() {
   return (
     <div className="flex min-h-full flex-col">
       <header className="border-b bg-background md:border-0 md:bg-transparent">
-        <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-5 pt-5 pb-4 md:px-8 md:pt-8">
+        <div className="mx-auto md:mx-0 flex w-full max-w-5xl items-center gap-3 px-5 pt-5 pb-4 md:px-8 md:pt-8">
           <div className="min-w-0 flex-1">
             {profile?.business_name && (
               <div className="truncate text-xs text-muted-foreground md:text-sm">{profile.business_name}</div>
@@ -60,7 +60,7 @@ export function HomeScreen() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 pt-4 pb-6 md:px-8">
+      <div className="mx-auto md:mx-0 w-full max-w-5xl flex-1 space-y-5 px-4 pt-4 pb-6 md:px-8">
         {telegram && telegram.state !== "connected" && (
           <Link to="/c/telegram" className="block">
             <WarningNote>

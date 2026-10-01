@@ -245,7 +245,7 @@ function Thread({ chat, onBack }: { chat: ChatItem; onBack: () => void }) {
         {messages.data?.length === 0 && (
           <p className="py-10 text-center text-sm text-muted-foreground">Сообщений пока нет</p>
         )}
-        <ol className="mx-auto flex max-w-3xl flex-col gap-2">
+        <ol className="mx-auto md:mx-0 flex max-w-3xl flex-col gap-2">
           {messages.data?.map((m, i) => {
             const at = parseSiteDate(m.at);
             const prev = i > 0 ? parseSiteDate(messages.data[i - 1].at) : null;
@@ -335,7 +335,7 @@ function Bubble({ message, at }: { message: ChatMessage; at: Date | null }) {
 
 function BubblesSkeleton() {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-3" aria-busy="true">
+    <div className="mx-auto md:mx-0 flex max-w-3xl flex-col gap-3" aria-busy="true">
       <Skeleton className="h-12 w-3/5 self-start rounded-2xl" />
       <Skeleton className="h-16 w-2/3 self-end rounded-2xl" />
       <Skeleton className="h-10 w-2/5 self-start rounded-2xl" />
