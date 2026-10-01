@@ -6,6 +6,7 @@
 полей держит экран простым и служебные поля нетронутыми.
 """
 
+import re
 from dataclasses import asdict, dataclass
 
 import frappe
@@ -21,7 +22,11 @@ CABINET_ROLES = STAFF_ROLES + FLOOR_ROLES
 PAGE_LIMIT = 100
 # Типы полей, по которым ищет строка поиска, и поля, по которым можно сортировать
 # и отбирать помимо перечисленных в разделе: системные, они есть у любого документа
-SEARCH_TYPES = frozenset({"Data", "Link", "Small Text", "Text", "Long Text", "Text Editor"})
+# Read Only — телефон и почта клиента (Customer.mobile_no, email_id) подтягиваются
+# из контакта и живут в поле этого типа; без него по ним нельзя было бы искать
+SEARCH_TYPES = frozenset({"Data", "Link", "Small Text", "Text", "Long Text", "Text Editor", "Read Only", "Phone"})
+# Короче этого цифр на телефон не похоже: «12» — это номер заказа, а не часть номера
+MIN_PHONE_DIGITS = 5
 SYSTEM_SORT = frozenset({"creation", "modified", "name"})
 DEFAULT_ORDER = "creation desc"
 
@@ -182,13 +187,32 @@ def _order_by(order_by, allowed):
 	return DEFAULT_ORDER
 
 
+def _search_variants(text):
+	"""Что искать: набранное как есть и, если это похоже на телефон, только цифры.
+
+	Номер набирают как угодно — «+7 701 555-10-00», «(701) 555 10 00», «8 701…» —
+	а хранится он одной строкой «+77015551000», и без этого не нашёлся бы."""
+	variants = [text]
+	if re.fullmatch(r"[\d\s+()\-]+", text):
+		digits = re.sub(r"\D", "", text)
+		if len(digits) >= MIN_PHONE_DIGITS:
+			variants.append(digits)
+			if len(digits) == 11 and digits.startswith("8"):
+				variants.append("7" + digits[1:])
+	return [*dict.fromkeys(variants)]
+
+
 def _search_filters(search, s, plain):
 	"""Поиск — по номеру и текстовым полям раздела, не по любым полям документа."""
 	text = (search or "").strip()
 	if not text:
 		return None
 	fields = [f.fieldname for f in s.list_fields if f.fieldname in plain and f.fieldtype in SEARCH_TYPES]
-	return [[s.doctype, name, "like", f"%{text}%"] for name in sorted({"name", *fields})]
+	return [
+		[s.doctype, name, "like", f"%{variant}%"]
+		for name in sorted({"name", *fields})
+		for variant in _search_variants(text)
+	]
 
 
 def _facet_adapter(specs):
@@ -256,10 +280,15 @@ def facets(section):
 	if adapter is None:
 		return []
 	base = merge_filters(row.base_filters, None, set())
-	result = [{"key": "", "label": _("Все"), "count": _count(s.doctype, base)}]
+	result = [{"key": "", "label": _("Все"), "count": _count(s.doctype, base), "closed": False}]
 	for f in adapter.facets():
 		result.append(
-			{"key": f["key"], "label": f["label"], "count": _count(s.doctype, base + [[*x] for x in f["filters"]])}
+			{
+				"key": f["key"],
+				"label": f["label"],
+				"count": _count(s.doctype, base + [[*x] for x in f["filters"]]),
+				"closed": bool(f.get("closed")),
+			}
 		)
 	return result
 

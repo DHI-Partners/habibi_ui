@@ -303,6 +303,32 @@ class TestCabinetListing(IntegrationTestCase):
 		self.assertEqual(self._texts(search=hit), ["зелёная ёлка"])  # по номеру (name)
 		self.assertEqual(self._texts(search="  "), self._texts())  # пустой поиск — без поиска
 
+	def test_поиск_находит_по_полю_только_для_чтения(self):
+		"""Телефон клиента (Customer.mobile_no) — Read Only, подтягивается из контакта:
+		искать по нему должно быть можно, как и по обычному тексту."""
+		name = self._todo("любое дело")
+		self._todo("другое дело")
+		frappe.db.set_value("ToDo", name, "assigned_by_full_name", "Мария Петрова")
+		settings = frappe.get_single("Cabinet Settings")
+		settings.sections[0].list_fields = "description:Что сделать\nassigned_by_full_name:Назначил"
+		settings.save()
+		self.assertEqual(self._texts(search="Петрова"), ["любое дело"])
+
+	def test_поиск_по_номеру_телефона_в_любой_записи(self):
+		hit = self._todo("клиент +77015551000")
+		self._todo("клиент +77029998877")
+		for typed in ("+77015551000", "+7 701 555-10-00", "8 701 555 10 00", "(701) 555 10 00", "5551000"):
+			with self.subTest(typed):
+				self.assertEqual(self._texts(search=typed), ["клиент +77015551000"])
+		self.assertEqual(self._texts(search="555 10 00"), ["клиент +77015551000"])
+		self.assertTrue(hit)
+
+	def test_короткие_цифры_не_считаются_телефоном(self):
+		self._todo("заказ 12")
+		self._todo("заказ 21")
+		# «1» и «12» — не номер телефона: ищется как обычный текст, без «выправления» цифр
+		self.assertEqual(self._texts(search="12"), ["заказ 12"])
+
 	def test_поиск_не_выходит_за_поля_раздела(self):
 		self._todo("обычное", allocated_to="Administrator")
 		# allocated_to не в list_fields: искать по нему нельзя
@@ -321,7 +347,7 @@ class TestCabinetListing(IntegrationTestCase):
 		adapter.read = lambda names: {}
 		adapter.facets = lambda: [
 			{"key": "high", "label": "Высокие", "filters": [["priority", "=", "High"]]},
-			{"key": "low", "label": "Низкие", "filters": [["priority", "=", "Low"]]},
+			{"key": "low", "label": "Низкие", "filters": [["priority", "=", "Low"]], "closed": True},
 		]
 		settings = frappe.get_single("Cabinet Settings")
 		settings.sections[0].list_fields = "description:Что сделать\n@fake_status:Статус"
@@ -343,9 +369,12 @@ class TestCabinetListing(IntegrationTestCase):
 		self._todo("закрытое важное", priority="High", status="Closed")
 		self._todo("потом", priority="Low")
 		with self._fake_status_adapter():
-			got = {f["key"]: f["count"] for f in cabinet.facets("todo")}
-			labels = [f["label"] for f in cabinet.facets("todo")]
+			facets = cabinet.facets("todo")
+		got = {f["key"]: f["count"] for f in facets}
+		labels = [f["label"] for f in facets]
+		closed = {f["key"]: f["closed"] for f in facets}
 		self.assertEqual((got["high"], got["low"]), (2, 1))
+		self.assertEqual((closed[""], closed["high"], closed["low"]), (False, False, True))
 		self.assertEqual(got[""], 3)  # «Все» — с базовым фильтром раздела
 		self.assertEqual(labels[0], "Все")
 

@@ -87,7 +87,7 @@ export const isDirty = (state: ListState): boolean =>
   activeFilters(state) > 0 || state.search.trim() !== "" || state.facet !== "" || state.orderBy !== "";
 
 // Поля, по которым сервер ищет строкой поиска (habibi_ui.api.v1.cabinet.SEARCH_TYPES)
-const SEARCH_TYPES = new Set(["Data", "Link", "Small Text", "Text", "Long Text", "Text Editor"]);
+const SEARCH_TYPES = new Set(["Data", "Link", "Small Text", "Text", "Long Text", "Text Editor", "Read Only", "Phone"]);
 
 export function searchLabels(section: CabinetSection): string[] {
   return section.list_fields.filter((f) => SEARCH_TYPES.has(f.fieldtype)).map((f) => f.label.toLowerCase());
