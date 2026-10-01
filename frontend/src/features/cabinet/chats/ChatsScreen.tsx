@@ -413,7 +413,15 @@ function DeleteDialog({ chat, open, onOpenChange }: { chat: ChatItem; open: bool
                 {
                   onSuccess: (r) => {
                     onOpenChange(false);
-                    toast.success(`Переписка удалена: в кабинете${r.telegram ? ", в Telegram" : ""} и у бота`);
+                    const erased = r.telegram_found - r.telegram_left;
+                    toast.success(
+                      r.telegram
+                        ? `Переписка удалена. В Telegram стёрто ${erased} из ${r.telegram_found}`
+                        : "Переписка удалена в кабинете и у бота",
+                    );
+                    // Telegram не обязан стирать всё: чужие сообщения в группе, слишком старые и т.п.
+                    if (r.telegram && r.telegram_left > 0)
+                      toast.warning(`Telegram не дал стереть ${r.telegram_left} сообщ. — они остались в чате`);
                     if (r.engine === "error") toast.warning("Бот может помнить часть разговора: стереть его память не удалось");
                   },
                   onError: (e) => toast.error(e.message),
