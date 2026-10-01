@@ -1,17 +1,20 @@
-import { ChevronRight, Plus, Search, SearchX } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronRight, Plus, SearchX } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { cn } from "../../shared/lib/utils";
 import type { CabinetField, CabinetSection } from "../../shared/types/api";
-import { buttonVariants } from "../../shared/ui/button";
-import { Input } from "../../shared/ui/input";
+import { Button, buttonVariants } from "../../shared/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../shared/ui/table";
-import { type Filter, type Row, useSectionList } from "./api";
+import { PAGE_SIZE, type Row, useFacets, useSectionInfinite, useSectionPage } from "./api";
 import { formatValue } from "./FieldInput";
-import { docstatusBadge, orderBadge, type StateKind, stateBadge } from "./format";
+import { docstatusBadge, orderBadge, type StateKind, shortNo, stateBadge } from "./format";
+import { fulfilmentIcon, stateIcon } from "./icons";
+import { buildQuery, INITIAL_STATE, isDirty, type ListState, nextOrder } from "./listState";
+import { ListToolbar } from "./ListToolbar";
 import { sectionIcon, useSectionBack } from "./nav";
-import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface } from "./ui";
+import { Pager } from "./Pager";
+import { EmptyState, ErrorNote, ListSkeleton, Page, StatusBadge, surface, useIsDesktop } from "./ui";
 
 const NUMERIC = new Set(["Currency", "Float", "Int"]);
 
@@ -42,7 +45,11 @@ function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
     const status = value as { state: string; kind: StateKind } | null | undefined;
     if (!status) return null;
     const [label, tone] = orderBadge(status.state, status.kind);
-    return <StatusBadge tone={tone}>{label}</StatusBadge>;
+    return (
+      <StatusBadge tone={tone} icon={stateIcon(status.state)}>
+        {label}
+      </StatusBadge>
+    );
   }
   if (field.fieldname === "workflow_state") {
     if (!value) return null;
@@ -52,21 +59,60 @@ function Cell({ field, row }: { field: CabinetField; row: Row }): ReactNode {
   if (field.fieldtype === "Check") {
     return value ? <StatusBadge tone="neutral">{field.label}</StatusBadge> : null;
   }
+  const Icon = field.fieldtype === "Select" ? fulfilmentIcon(value) : undefined;
+  if (Icon) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <Icon className="size-4 text-muted-foreground" aria-hidden />
+        {formatValue(field, value)}
+      </span>
+    );
+  }
   return formatValue(field, value);
+}
+
+/** Текст первой колонки: у заказов — «№10», а не SAL-ORD-2026-00010 (длинное имя владельцу ни к чему). */
+function titleText(section: CabinetSection, f: CabinetField, row: Row): string {
+  if (section.doctype === "Sales Order" && f.fieldname === "name") return shortNo(row.name);
+  return formatValue(f, row[f.fieldname]) || row.name;
 }
 
 const isBadge = (f: CabinetField) =>
   f.fieldname === "docstatus" || f.fieldname === "workflow_state" || f.fieldtype === STATUS || f.fieldtype === "Check";
 
+// Столбцы, по которым имеет смысл сортировать кликом: значения самого документа.
+// Адаптеры (сумма, статус, число заказов) сервер не сортирует.
+const SORTABLE = new Set(["Data", "Link", "Select", "Date", "Datetime", "Phone", "Small Text"]);
+const DEBOUNCE_MS = 300;
+
 export function GenericList({ section: raw }: { section: CabinetSection }) {
   const section = withoutRawStatus(raw);
-  const [search, setSearch] = useState("");
+  const desktop = useIsDesktop();
   const navigate = useNavigate();
   const back = useSectionBack(section.key);
-  const firstText = section.list_fields.find((f) => f.fieldtype === "Data");
-  const filters: Filter[] = search && firstText ? [[firstText.fieldname, "like", `%${search}%`]] : [];
-  const list = useSectionList(section.key, filters);
-  const rows = list.data?.rows ?? [];
+  const [state, setState] = useState<ListState>(INITIAL_STATE);
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(0);
+  const patch = (p: Partial<ListState>) => setState((s) => ({ ...s, ...p }));
+
+  // Поиск уходит на сервер не на каждую букву, а когда человек остановился
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(state.search), DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [state.search]);
+
+  const query = useMemo(() => buildQuery(state, debounced), [state, debounced]);
+  const queryKey = JSON.stringify(query);
+  // Любое изменение условий возвращает на первую страницу
+  useEffect(() => setPage(0), [queryKey]);
+
+  const facets = useFacets(section.key);
+  const paged = useSectionPage(section.key, query, page, desktop);
+  const infinite = useSectionInfinite(section.key, query, !desktop);
+  const active = desktop ? paged : infinite;
+  const rows = desktop ? (paged.data?.rows ?? []) : (infinite.data?.pages.flatMap((p) => p.rows) ?? []);
+  const total = desktop ? paged.data?.total : infinite.data?.pages[0]?.total;
+  const dirty = isDirty(state);
   const [title, ...rest] = section.list_fields;
   // На телефоне карточка: заголовок, серая строка из текстовых полей, справа —
   // первое число (сумма, цена), бейджи — под текстом.
@@ -84,30 +130,41 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
   );
 
   return (
-    <Page title={section.label} back={back} backMobileOnly actions={add} width="wide">
+    <Page
+      title={section.label}
+      subtitle={total === undefined ? undefined : `${dirty ? "Найдено" : "Всего"}: ${total}`}
+      back={back}
+      backMobileOnly
+      actions={add}
+      width="wide"
+    >
       <div className="space-y-3">
-        {firstText && (
-          <div className="relative md:max-w-sm">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={`Поиск: ${firstText.label.toLowerCase()}`}
-              aria-label="Поиск"
-              className="h-10 bg-card pl-9 md:h-9"
-            />
-          </div>
-        )}
+        <ListToolbar
+          section={section}
+          state={state}
+          onChange={patch}
+          onReset={() => setState(INITIAL_STATE)}
+          facets={facets.data ?? []}
+          total={total}
+          desktop={desktop}
+        />
 
-        {list.isPending && <ListSkeleton rows={5} />}
-        {list.error && <ErrorNote title="Не удалось загрузить список">{list.error.message}</ErrorNote>}
+        {active.isPending && <ListSkeleton rows={5} />}
+        {active.error && <ErrorNote title="Не удалось загрузить список">{active.error.message}</ErrorNote>}
 
-        {list.data && rows.length === 0 && (
+        {active.data && rows.length === 0 && (
           <EmptyState
-            icon={search ? SearchX : Icon}
-            text={search ? "Ничего не найдено — попробуйте другой запрос" : "Здесь пока пусто"}
-            action={!search && add}
+            icon={dirty ? SearchX : Icon}
+            text={dirty ? "Ничего не найдено — измените условия поиска" : "Здесь пока пусто"}
+            action={
+              dirty ? (
+                <Button variant="outline" onClick={() => setState(INITIAL_STATE)}>
+                  Сбросить фильтры
+                </Button>
+              ) : (
+                add
+              )
+            }
           />
         )}
 
@@ -119,7 +176,7 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
                   <Link to={href(row)} className={cn(surface, "flex items-center gap-3 px-3.5 py-3 active:bg-muted/60")}>
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="truncate text-[15px] font-semibold">
-                        {formatValue(title, row[title.fieldname]) || row.name}
+                        {titleText(section, title, row)}
                       </div>
                       {plain.length > 0 && (
                         <div className="truncate text-[13px] text-muted-foreground">
@@ -152,14 +209,34 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    {section.list_fields.map((f) => (
-                      <TableHead
-                        key={f.fieldname}
-                        className={cn("h-10 px-4 text-xs text-muted-foreground", NUMERIC.has(f.fieldtype) && !isBadge(f) && "text-right")}
-                      >
-                        {f.label}
-                      </TableHead>
-                    ))}
+                    {section.list_fields.map((f) => {
+                      const sortable = SORTABLE.has(f.fieldtype) && !isBadge(f);
+                      const [orderField, dir] = state.orderBy.split(" ");
+                      const sorted = orderField === f.fieldname;
+                      return (
+                        <TableHead
+                          key={f.fieldname}
+                          aria-sort={sorted ? (dir === "asc" ? "ascending" : "descending") : undefined}
+                          className={cn(
+                            "h-10 px-4 text-xs text-muted-foreground",
+                            NUMERIC.has(f.fieldtype) && !isBadge(f) && "text-right",
+                          )}
+                        >
+                          {sortable ? (
+                            <button
+                              type="button"
+                              onClick={() => patch({ orderBy: nextOrder(state.orderBy, f.fieldname) })}
+                              className={cn("inline-flex items-center gap-1 hover:text-foreground", sorted && "text-primary")}
+                            >
+                              {f.label}
+                              {sorted && (dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
+                            </button>
+                          ) : (
+                            f.label
+                          )}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -176,7 +253,7 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
                         >
                           {i === 0 ? (
                             <Link to={href(row)} className="hover:underline" onClick={(e) => e.stopPropagation()}>
-                              {formatValue(f, row[f.fieldname]) || row.name}
+                              {titleText(section, f, row)}
                             </Link>
                           ) : (
                             <Cell field={f} row={row} />
@@ -188,8 +265,26 @@ export function GenericList({ section: raw }: { section: CabinetSection }) {
                 </TableBody>
               </Table>
             </div>
-            {list.data?.has_more && (
-              <p className="text-center text-xs text-muted-foreground">Показаны последние {rows.length} — уточните поиск</p>
+            {desktop ? (
+              total !== undefined && <Pager page={page} total={total} onPage={setPage} />
+            ) : (
+              <div className="space-y-2 pt-1">
+                {infinite.hasNextPage && (
+                  <Button
+                    variant="outline"
+                    className="h-11 w-full bg-card font-semibold text-primary"
+                    disabled={infinite.isFetchingNextPage}
+                    onClick={() => void infinite.fetchNextPage()}
+                  >
+                    Показать ещё {Math.min(PAGE_SIZE, (total ?? 0) - rows.length)}
+                  </Button>
+                )}
+                {total !== undefined && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Показано {rows.length} из {total}
+                  </p>
+                )}
+              </div>
             )}
           </>
         )}

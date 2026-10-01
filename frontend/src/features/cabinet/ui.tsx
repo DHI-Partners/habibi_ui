@@ -100,8 +100,23 @@ const TONES: Record<Tone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
 };
 
-export function StatusBadge({ tone, children, className }: { tone: Tone; children: ReactNode; className?: string }) {
-  return <Badge className={cn("h-6 rounded-full px-2.5 text-xs font-semibold", TONES[tone], className)}>{children}</Badge>;
+export function StatusBadge({
+  tone,
+  icon: Icon,
+  children,
+  className,
+}: {
+  tone: Tone;
+  icon?: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Badge className={cn("h-6 gap-1 rounded-full px-2.5 text-xs font-semibold", Icon && "pl-2", TONES[tone], className)}>
+      {Icon && <Icon className="size-3.5" aria-hidden />}
+      {children}
+    </Badge>
+  );
 }
 
 // Цвет аватара — от имени, чтобы один и тот же клиент всегда был одного цвета.

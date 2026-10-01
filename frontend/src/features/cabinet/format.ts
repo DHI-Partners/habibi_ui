@@ -92,6 +92,15 @@ export function dateLabel(value: unknown): string {
   return (date.getFullYear() === new Date().getFullYear() ? DAY_MONTH : DAY_MONTH_YEAR).format(date);
 }
 
+/** Дата со временем («2026-09-24 14:02:11»): «сегодня, 14:02», «вчера, 19:48», «23 сентября, 13:20». */
+export function dateTimeLabel(value: unknown): string {
+  const d = parseSiteDate(value ? String(value) : null);
+  if (!d) return value ? String(value) : "";
+  const ago = daysAgo(d);
+  const day = ago === 0 ? "сегодня" : ago === 1 ? "вчера" : (d.getFullYear() === new Date().getFullYear() ? DAY_MONTH : DAY_MONTH_YEAR).format(d);
+  return `${day}, ${TIME.format(d)}`;
+}
+
 export function initial(name: string | null | undefined): string {
   const trimmed = (name ?? "").trim();
   return trimmed ? trimmed.charAt(0).toUpperCase() : "?";

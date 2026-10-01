@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../shared/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../shared/ui/select";
 import { Switch } from "../../shared/ui/switch";
 import { Textarea } from "../../shared/ui/textarea";
-import { dateLabel, money } from "./format";
+import { dateLabel, dateTimeLabel, money } from "./format";
 
 // Frappe хранит варианты Select как есть, часто по-английски, и переводит их
 // только в Desk. Самые частые значения пресетов показываем по-русски;
@@ -35,6 +35,7 @@ export function formatValue(field: CabinetField, value: unknown): string {
   if (field.fieldtype === "Check") return value ? field.label : "";
   if (field.fieldtype === "Currency" || field.fieldtype === "Float") return money(value);
   if (field.fieldtype === "Date") return dateLabel(value);
+  if (field.fieldtype === "Datetime") return dateTimeLabel(value);
   return String(value);
 }
 

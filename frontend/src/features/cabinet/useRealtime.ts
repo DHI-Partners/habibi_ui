@@ -45,6 +45,7 @@ export function useRealtime() {
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "fulfilment"] });
           } else if (event.topic === "orders") {
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "list", "orders"] });
+            void queryClient.invalidateQueries({ queryKey: ["cabinet", "facets", "orders"] });
             // Открытый экран заказа тоже перечитывается: заказ мог принять
             // сотрудник или сдвинуть кухня
             void queryClient.invalidateQueries({ queryKey: ["cabinet", "order-details"] });
